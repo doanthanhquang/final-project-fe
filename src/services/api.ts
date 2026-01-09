@@ -151,9 +151,19 @@ export async function getCurrentUser(): Promise<User> {
   return res.data;
 }
 
-export async function googleSignIn(credential: string, userInfo: GoogleUserInfo): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>("/google-signin", {
+export interface GoogleSignInResponse extends AuthResponse {
+  emailProviderConnected?: boolean;
+  isNewUser?: boolean;
+}
+
+export async function googleSignIn(
+  credential: string,
+  userInfo: GoogleUserInfo,
+  code?: string
+): Promise<GoogleSignInResponse> {
+  const res = await api.post<GoogleSignInResponse>("/google-signin", {
     credential,
+    code, // OAuth authorization code (optional)
     name: userInfo.name,
     email: userInfo.email,
     googleId: userInfo.sub,

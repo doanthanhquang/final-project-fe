@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { LoginForm, type LoginFormData } from "@/components/login-form";
 import type { CredentialResponse } from "@react-oauth/google";
+import { useGoogleLogin } from "@react-oauth/google";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 import type { AxiosError } from "axios";
 import type { GoogleUserInfo } from "@/services/api";
@@ -28,6 +29,73 @@ const Login = () => {
   const form = useForm<LoginFormData>();
   const { setError } = form;
 
+  // New: Use useGoogleLogin with auth-code flow (MUST be at top level)
+  const googleLogin = useGoogleLogin({
+    flow: "auth-code",
+    scope: [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.modify",
+    ].join(" "),
+    onSuccess: async (codeResponse) => {
+      try {
+        setSubmitting(true);
+        setLoginError("");
+        setServerErrors([]);
+
+        // Backend will exchange code for tokens and get user info
+        const userInfo: GoogleUserInfo = {
+          name: "", // Backend will get from tokens
+          email: "", // Backend will get from tokens
+          sub: "", // Backend will get from tokens
+          picture: undefined,
+        };
+
+        const result = await loginWithGoogle(
+          "", // No credential needed when using code
+          userInfo,
+          codeResponse.code // Send authorization code
+        );
+
+        setLoginSuccess(true);
+
+        // Check if email provider was connected
+        if (result.emailProviderConnected) {
+          console.log("✅ Gmail connected during sign-in!");
+        }
+
+        setTimeout(() => {
+          setLoginSuccess(false);
+          navigate("/dashboard");
+        }, 1500);
+      } catch (e) {
+        setLoginSuccess(false);
+        const error = e as AxiosError<ServerErrorResponse>;
+        const errorData = error.response?.data;
+        const msg =
+          errorData?.message || "Google Sign-In failed. Please try again.";
+        setLoginError(msg);
+
+        if (error.response?.status === 422) {
+          setLoginError("Invalid Google credentials. Please try again.");
+        } else if (error.response?.status === 500) {
+          setLoginError(
+            "Server error during Google Sign-In. Please try again later."
+          );
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    onError: (error) => {
+      console.error("Google login error:", error);
+      setLoginError("Google Sign-In failed. Please try again.");
+    },
+  });
+
   // Redirect to dashboard if already authenticated
   if (!initializing && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -41,7 +109,7 @@ const Login = () => {
       await login({ email: data.email, password: data.password });
       setLoginSuccess(true);
       setTimeout(() => setLoginSuccess(false), 2000);
-      navigate("/inbox");
+      navigate("/dashboard");
     } catch (e) {
       setLoginSuccess(false);
       const error = e as AxiosError<ServerErrorResponse>;
@@ -81,6 +149,7 @@ const Login = () => {
     }
   };
 
+  // Fallback: Old method using credential (ID token only)
   const handleGoogleSuccess = async (
     credentialResponse: CredentialResponse
   ) => {
@@ -105,12 +174,11 @@ const Login = () => {
         await loginWithGoogle(credentialResponse.credential, userInfo);
       }
 
-      // Show appropriate success message based on whether user is new or returning
       setLoginSuccess(true);
 
       setTimeout(() => {
         setLoginSuccess(false);
-        navigate("/inbox");
+        navigate("/dashboard");
       }, 1500);
     } catch (e) {
       setLoginSuccess(false);
@@ -120,7 +188,6 @@ const Login = () => {
         errorData?.message || "Google Sign-In failed. Please try again.";
       setLoginError(msg);
 
-      // Handle specific error cases
       if (error.response?.status === 422) {
         setLoginError("Invalid Google credentials. Please try again.");
       } else if (error.response?.status === 500) {
@@ -145,6 +212,7 @@ const Login = () => {
       onSubmit={onSubmit}
       onGoogleSuccess={handleGoogleSuccess}
       onGoogleError={handleGoogleError}
+      onGoogleLoginClick={googleLogin} // New: Pass the auth-code login function
       submitting={submitting}
       loginError={loginError}
       loginSuccess={loginSuccess}

@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useCallback, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useCallback,
+  useState,
+  type ReactNode,
+} from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authStorage } from "@/services/auth-storage";
 import {
@@ -16,7 +24,11 @@ interface AuthContextType {
   user: User | null;
   initializing: boolean;
   login: (data: LoginCredentials) => Promise<void>;
-  loginWithGoogle: (credential: string, userInfo: GoogleUserInfo) => Promise<void>;
+  loginWithGoogle: (
+    credential: string,
+    userInfo: GoogleUserInfo,
+    code?: string
+  ) => Promise<{ emailProviderConnected?: boolean }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -70,8 +82,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   const googleLoginMutation = useMutation({
-    mutationFn: ({ credential, userInfo }: { credential: string; userInfo: GoogleUserInfo }) =>
-      googleSignIn(credential, userInfo),
+    mutationFn: ({
+      credential,
+      userInfo,
+      code,
+    }: {
+      credential: string;
+      userInfo: GoogleUserInfo;
+      code?: string;
+    }) => googleSignIn(credential, userInfo, code),
     onSuccess: async () => {
       const me = await getCurrentUser();
       setUser(me);
@@ -86,8 +105,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login: async (data: LoginCredentials) => {
         await loginMutation.mutateAsync(data);
       },
-      loginWithGoogle: async (credential: string, userInfo: GoogleUserInfo) => {
-        await googleLoginMutation.mutateAsync({ credential, userInfo });
+      loginWithGoogle: async (
+        credential: string,
+        userInfo: GoogleUserInfo,
+        code?: string
+      ) => {
+        const result = await googleLoginMutation.mutateAsync({
+          credential,
+          userInfo,
+          code,
+        });
+        return { emailProviderConnected: result.emailProviderConnected };
       },
       logout: handleLogout,
       isAuthenticated: !!user,
@@ -104,4 +132,3 @@ export function useAuth(): AuthContextType {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

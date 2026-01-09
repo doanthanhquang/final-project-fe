@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/protected-route";
-import Dashboard from "./pages/dashboard";
+import EmailInbox from "./pages/dashboard";
 import Login from "./pages/login";
 
 function App() {
@@ -11,15 +11,7 @@ function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/inbox"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
+            <EmailInbox />
           </ProtectedRoute>
         }
       />
