@@ -111,7 +111,7 @@ api.interceptors.response.use(
 );
 
 export async function loginUser(credentials: LoginCredentials): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>("/api/login", credentials);
+  const res = await api.post<AuthResponse>("/login", credentials);
   const { accessToken, accessTokenExpiresAt, refreshToken } = res.data;
   authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
   authStorage.setRefreshToken(refreshToken);
@@ -120,7 +120,7 @@ export async function loginUser(credentials: LoginCredentials): Promise<AuthResp
 
 export async function logout(): Promise<void> {
   try {
-    await api.post("/api/logout", {
+    await api.post("/logout", {
       refreshToken: authStorage.getRefreshToken(),
     });
   } catch {
@@ -133,26 +133,26 @@ export async function logout(): Promise<void> {
 export async function refreshAccessToken(): Promise<string> {
   const refreshToken = authStorage.getRefreshToken();
   if (!refreshToken) throw new Error("Missing refresh token");
-  const res = await api.post<AuthResponse>("/api/refresh", { refreshToken });
+  const res = await api.post<AuthResponse>("/refresh", { refreshToken });
   const { accessToken, accessTokenExpiresAt } = res.data;
   authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
   return accessToken;
 }
 
 export const registerUser = async (userData: RegisterUserData): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>("/api/register", userData);
+  const response = await api.post<AuthResponse>("/register", userData);
   return response.data;
 };
 
 export default api;
 
 export async function getCurrentUser(): Promise<User> {
-  const res = await api.get<User>("/api/me");
+  const res = await api.get<User>("/me");
   return res.data;
 }
 
 export async function googleSignIn(credential: string, userInfo: GoogleUserInfo): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>("/api/google-signin", {
+  const res = await api.post<AuthResponse>("/google-signin", {
     credential,
     name: userInfo.name,
     email: userInfo.email,
