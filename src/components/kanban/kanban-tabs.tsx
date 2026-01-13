@@ -22,7 +22,7 @@ export function KanbanTabs({ activeTab, onTabChange, emailCounts }: KanbanTabsPr
           const count = emailCounts[tab.id] || 0;
           const isActive = activeTab === tab.id;
 
-          // Don't show snoozed tab if there are no snoozed emails
+          // Hide snoozed tab if no snoozed emails
           if (tab.id === "snoozed" && count === 0) {
             return null;
           }
@@ -35,7 +35,9 @@ export function KanbanTabs({ activeTab, onTabChange, emailCounts }: KanbanTabsPr
                 "flex-1 min-w-[100px] px-4 py-3 text-sm font-medium transition-colors relative",
                 "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500",
                 isActive
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                  ? tab.id === "snoozed"
+                    ? "text-purple-600 border-b-2 border-purple-600 bg-purple-50"
+                    : "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               )}
             >
@@ -46,7 +48,11 @@ export function KanbanTabs({ activeTab, onTabChange, emailCounts }: KanbanTabsPr
                   <span
                     className={cn(
                       "inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full",
-                      isActive ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                      isActive
+                        ? tab.id === "snoozed"
+                          ? "bg-purple-600 text-white"
+                          : "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700"
                     )}
                   >
                     {count}

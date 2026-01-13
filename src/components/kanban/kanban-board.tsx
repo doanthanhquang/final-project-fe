@@ -84,7 +84,7 @@ export function KanbanBoard({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Mobile Tabs */}
+      {/* Mobile Tabs - Shows snoozed tab when there are snoozed emails */}
       <KanbanTabs
         activeTab={activeMobileTab}
         onTabChange={setActiveMobileTab}
@@ -92,7 +92,7 @@ export function KanbanBoard({
       />
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* Desktop: Grid view with all columns */}
+        {/* Desktop: Grid view with 3 columns (no snoozed) */}
         <div className="hidden md:flex flex-1 gap-4 p-6 overflow-hidden">
           {KANBAN_COLUMNS.map((column) => (
             <KanbanColumn

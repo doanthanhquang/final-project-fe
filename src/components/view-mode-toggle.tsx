@@ -7,7 +7,7 @@ interface ViewModeToggleProps {
 
 export function ViewModeToggle({ mode, onModeChange }: ViewModeToggleProps) {
   return (
-    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 h-fit">
       <button
         onClick={() => onModeChange("list")}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${

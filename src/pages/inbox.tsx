@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { Clock } from "lucide-react";
 import { MailboxList } from "@/components/mailbox-list";
 import { EmailList } from "@/components/email-list";
 import { EmailDetail } from "@/components/email-detail";
@@ -7,6 +8,7 @@ import { AppLayout } from "@/components/app-layout";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { SnoozeDialog } from "@/components/snooze-dialog";
+import { SnoozePanel } from "@/components/kanban/snooze-panel";
 import { emailService } from "@/services/email";
 import { workflowService } from "@/services/workflow";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ import { useEmailData } from "@/hooks/useEmailData";
 import { useResponsiveView } from "@/hooks/useResponsiveView";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import type { EmailCardData, ColumnId } from "@/types/kanban";
+import { cn } from "@/lib/utils";
 
 export default function EmailInbox() {
   const queryClient = useQueryClient();
@@ -33,6 +36,7 @@ export default function EmailInbox() {
   const [selectedMailboxId, setSelectedMailboxId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
+  const [snoozePanelOpen, setSnoozePanelOpen] = useState(false);
   const [emailToSnooze, setEmailToSnooze] = useState<{ id: string; subject: string } | null>(null);
 
   // Auto-select first mailbox when loaded
@@ -242,7 +246,23 @@ export default function EmailInbox() {
         {/* Header with View Mode Toggle */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
           <h1 className="text-xl font-semibold text-gray-900">AI Email Flow</h1>
-          <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
+          <div className="flex flex-row gap-2 items-center">
+            <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
+            {/* Snooze Button - Desktop Only */}
+            <button
+              onClick={() => setSnoozePanelOpen(true)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg border-2",
+                "text-purple-700 font-medium shadow-sm max-md:hidden"
+              )}
+            >
+              <Clock className="w-5 h-5" />
+              <span>Snooze</span>
+              <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600 text-white">
+                {emailsByColumn.snoozed.length}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -325,21 +345,30 @@ export default function EmailInbox() {
           )}
         </div>
 
-        {/* Compose Button */}
-      </div>
+        {/* Snooze Dialog */}
+        {emailToSnooze && (
+          <SnoozeDialog
+            isOpen={snoozeDialogOpen}
+            onClose={() => {
+              setSnoozeDialogOpen(false);
+              setEmailToSnooze(null);
+            }}
+            onSnooze={handleSnooze}
+            emailSubject={emailToSnooze.subject}
+          />
+        )}
 
-      {/* Snooze Dialog */}
-      {emailToSnooze && (
-        <SnoozeDialog
-          isOpen={snoozeDialogOpen}
-          onClose={() => {
-            setSnoozeDialogOpen(false);
-            setEmailToSnooze(null);
-          }}
-          onSnooze={handleSnooze}
-          emailSubject={emailToSnooze.subject}
-        />
-      )}
+        {/* Snooze Panel - Desktop Only */}
+        {viewMode === "kanban" && (
+          <SnoozePanel
+            isOpen={snoozePanelOpen}
+            onClose={() => setSnoozePanelOpen(false)}
+            emails={emailsByColumn.snoozed || []}
+            onEmailClick={handleEmailClick}
+            onUnsnoozeClick={handleUnsnooze}
+          />
+        )}
+      </div>
     </AppLayout>
   );
 }

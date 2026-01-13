@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, X, Calendar } from "lucide-react";
+import { Clock, Calendar } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -86,18 +86,15 @@ export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: Snooze
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-orange-500" />
               Snooze Email
             </DialogTitle>
-            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
-            </button>
           </div>
-          <DialogDescription className="text-sm text-gray-600 truncate">
+          <DialogDescription className="text-sm text-gray-600 w-fit">
             {emailSubject}
           </DialogDescription>
         </DialogHeader>

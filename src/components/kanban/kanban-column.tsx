@@ -25,18 +25,13 @@ export function KanbanColumn({
   return (
     <div className="flex flex-col h-full bg-gray-50 rounded-lg overflow-hidden">
       {/* Column Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+      <div className="max-md:hidden flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-gray-700">{column.title}</h2>
           <span className="bg-gray-200 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
             {emails.length}
           </span>
         </div>
-        <button className="text-gray-400 hover:text-gray-600">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
-          </svg>
-        </button>
       </div>
 
       {/* Column Content */}
