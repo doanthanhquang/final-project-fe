@@ -105,11 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login: async (data: LoginCredentials) => {
         await loginMutation.mutateAsync(data);
       },
-      loginWithGoogle: async (
-        credential: string,
-        userInfo: GoogleUserInfo,
-        code?: string
-      ) => {
+      loginWithGoogle: async (credential: string, userInfo: GoogleUserInfo, code?: string) => {
         const result = await googleLoginMutation.mutateAsync({
           credential,
           userInfo,

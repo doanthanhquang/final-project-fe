@@ -12,14 +12,9 @@ interface EmailCardProps {
 }
 
 export function EmailCard({ email, onClick, onSnoozeClick, onUnsnoozeClick }: EmailCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: email.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: email.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -27,9 +22,7 @@ export function EmailCard({ email, onClick, onSnoozeClick, onUnsnoozeClick }: Em
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const timeAgo = email.date
-    ? formatDistanceToNow(new Date(email.date), { addSuffix: false })
-    : "";
+  const timeAgo = email.date ? formatDistanceToNow(new Date(email.date), { addSuffix: false }) : "";
 
   const isSnoozed = !!email.workflowState?.snoozed_until;
   const snoozeUntilDate = email.workflowState?.snoozed_until
@@ -102,9 +95,7 @@ export function EmailCard({ email, onClick, onSnoozeClick, onUnsnoozeClick }: Em
           {isSnoozed && snoozeUntilDate && (
             <div className="flex items-center gap-1 text-orange-500">
               <Clock className="w-3 h-3" />
-              <span className="text-xs">
-                Until {format(snoozeUntilDate, "MMM d, h:mm a")}
-              </span>
+              <span className="text-xs">Until {format(snoozeUntilDate, "MMM d, h:mm a")}</span>
             </div>
           )}
         </div>

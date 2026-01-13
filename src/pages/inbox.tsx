@@ -19,29 +19,18 @@ export default function EmailInbox() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<"list" | "kanban">(() => {
     const savedMode = localStorage.getItem("email-view-mode");
-    return (savedMode === "list" || savedMode === "kanban") ? savedMode : "kanban";
+    return savedMode === "list" || savedMode === "kanban" ? savedMode : "kanban";
   });
 
-  const {
-    mailboxesQuery,
-    getEmailsQuery,
-    getEmailDetailQuery,
-    modifyEmailMutation,
-  } = useEmailData();
-  const {
-    mobileView,
-    navigateToEmails,
-    navigateToDetail,
-    navigateToMailboxes,
-  } = useResponsiveView();
+  const { mailboxesQuery, getEmailsQuery, getEmailDetailQuery, modifyEmailMutation } =
+    useEmailData();
+  const { mobileView, navigateToEmails, navigateToDetail, navigateToMailboxes } =
+    useResponsiveView();
 
-  const { workflowStatesQuery, moveEmailMutation, initializeEmailMutation } =
-    useWorkflow();
+  const { workflowStatesQuery, moveEmailMutation, initializeEmailMutation } = useWorkflow();
 
   const { data: mailboxes = [], isLoading: mailboxesLoading } = mailboxesQuery;
-  const [selectedMailboxId, setSelectedMailboxId] = useState<string | null>(
-    null
-  );
+  const [selectedMailboxId, setSelectedMailboxId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
   const [emailToSnooze, setEmailToSnooze] = useState<{ id: string; subject: string } | null>(null);
@@ -49,14 +38,10 @@ export default function EmailInbox() {
   // Auto-select first mailbox when loaded
   const effectiveMailboxId =
     selectedMailboxId ||
-    (mailboxes.length > 0
-      ? (mailboxes.find((m) => m.id === "INBOX") || mailboxes[0]).id
-      : null);
+    (mailboxes.length > 0 ? (mailboxes.find((m) => m.id === "INBOX") || mailboxes[0]).id : null);
 
-  const { data: emailsData, isLoading: emailsLoading } =
-    getEmailsQuery(effectiveMailboxId);
-  const { data: emailDetail, isLoading: emailDetailLoading } =
-    getEmailDetailQuery(selectedEmailId);
+  const { data: emailsData, isLoading: emailsLoading } = getEmailsQuery(effectiveMailboxId);
+  const { data: emailDetail, isLoading: emailDetailLoading } = getEmailDetailQuery(selectedEmailId);
 
   // Initialize workflow states for new emails
   useEffect(() => {
@@ -149,7 +134,7 @@ export default function EmailInbox() {
     setViewMode("list");
     localStorage.setItem("email-view-mode", "list");
     navigateToDetail();
-    
+
     // Mark email as read if unread
     const email = emailsData?.data.find((e) => e.id === emailId);
     if (email && !email.read) {
@@ -159,14 +144,24 @@ export default function EmailInbox() {
 
   // Snooze mutation
   const snoozeMutation = useMutation({
-    mutationFn: ({ emailId, snoozeUntil, quickOption }: { 
-      emailId: string; 
-      snoozeUntil?: string; 
+    mutationFn: ({
+      emailId,
+      snoozeUntil,
+      quickOption,
+    }: {
+      emailId: string;
+      snoozeUntil?: string;
       quickOption?: string;
-    }) => workflowService.snoozeEmail(emailId, { 
-      snooze_until: snoozeUntil, 
-      quick_option: quickOption as "later_today" | "tomorrow" | "this_weekend" | "next_week" | undefined 
-    }),
+    }) =>
+      workflowService.snoozeEmail(emailId, {
+        snooze_until: snoozeUntil,
+        quick_option: quickOption as
+          | "later_today"
+          | "tomorrow"
+          | "this_weekend"
+          | "next_week"
+          | undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflowStates"] });
       queryClient.invalidateQueries({ queryKey: ["emails"] });
@@ -215,19 +210,14 @@ export default function EmailInbox() {
   // Handle connection status
   if (
     mailboxesQuery.error &&
-    (mailboxesQuery.error as { response?: { status?: number } })?.response
-      ?.status === 400
+    (mailboxesQuery.error as { response?: { status?: number } })?.response?.status === 400
   ) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-4">
-              No Email Provider Connected
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Please connect your Gmail account to get started.
-            </p>
+            <h2 className="text-2xl font-semibold mb-4">No Email Provider Connected</h2>
+            <p className="text-gray-600 mb-4">Please connect your Gmail account to get started.</p>
             <Button
               onClick={async () => {
                 try {

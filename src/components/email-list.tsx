@@ -39,12 +39,7 @@ export function EmailList({
             className="md:hidden absolute top-4 left-4 p-2 text-gray-600 hover:text-gray-900"
             aria-label="Back to mailboxes"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -89,12 +84,7 @@ export function EmailList({
             className="p-2 text-gray-600 hover:text-gray-900 -ml-2"
             aria-label="Back to mailboxes"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -124,10 +114,7 @@ export function EmailList({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className={cn(
-                      "text-sm font-medium truncate",
-                      !email.read && "font-semibold"
-                    )}
+                    className={cn("text-sm font-medium truncate", !email.read && "font-semibold")}
                   >
                     {email.from}
                   </span>
@@ -155,9 +142,7 @@ export function EmailList({
                 >
                   {email.subject || "(No Subject)"}
                 </p>
-                <p className="text-xs text-gray-500">
-                  {formatDate(email.date)}
-                </p>
+                <p className="text-xs text-gray-500">{formatDate(email.date)}</p>
               </div>
             </div>
           </button>

@@ -7,9 +7,7 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-export function AppLayout({
-  children,
-}: AppLayoutProps) {
+export function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -29,26 +27,12 @@ export function AppLayout({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">Email</h1>
-            {user && (
-              <span className="text-sm text-gray-600">
-                {user.name || user.email}
-              </span>
-            )}
+            {user && <span className="text-sm text-gray-600">{user.name || user.email}</span>}
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="text-gray-700"
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+            <Button variant="outline" size="sm" onClick={handleLogout} className="text-gray-700">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

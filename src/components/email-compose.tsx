@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,17 +83,9 @@ export function EmailCompose({
       };
 
       if (mode === "reply" && replyToEmailId) {
-        await emailService.replyEmail(
-          replyToEmailId,
-          body,
-          subject || undefined
-        );
+        await emailService.replyEmail(replyToEmailId, body, subject || undefined);
       } else if (mode === "forward" && forwardEmailId) {
-        await emailService.forwardEmail(
-          forwardEmailId,
-          toEmails,
-          body || undefined
-        );
+        await emailService.forwardEmail(forwardEmailId, toEmails, body || undefined);
       } else {
         await emailService.sendEmail(emailData);
       }
@@ -111,9 +98,7 @@ export function EmailCompose({
       setBody("");
       onClose();
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || "Failed to send email. Please try again."
-      );
+      setError(err.response?.data?.message || "Failed to send email. Please try again.");
     } finally {
       setSending(false);
     }

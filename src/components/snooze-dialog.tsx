@@ -19,12 +19,7 @@ interface SnoozeDialogProps {
 
 type QuickOption = "later_today" | "tomorrow" | "this_weekend" | "next_week";
 
-export function SnoozeDialog({
-  isOpen,
-  onClose,
-  onSnooze,
-  emailSubject,
-}: SnoozeDialogProps) {
+export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: SnoozeDialogProps) {
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("");
 
@@ -98,10 +93,7 @@ export function SnoozeDialog({
               <Clock className="w-5 h-5 text-orange-500" />
               Snooze Email
             </DialogTitle>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -123,9 +115,7 @@ export function SnoozeDialog({
                 >
                   <span className="text-xl">{option.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
-                      {option.label}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900">{option.label}</p>
                     <p className="text-xs text-gray-500">{option.description}</p>
                   </div>
                 </button>

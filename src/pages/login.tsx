@@ -75,16 +75,13 @@ const Login = () => {
         setLoginSuccess(false);
         const error = e as AxiosError<ServerErrorResponse>;
         const errorData = error.response?.data;
-        const msg =
-          errorData?.message || "Google Sign-In failed. Please try again.";
+        const msg = errorData?.message || "Google Sign-In failed. Please try again.";
         setLoginError(msg);
 
         if (error.response?.status === 422) {
           setLoginError("Invalid Google credentials. Please try again.");
         } else if (error.response?.status === 500) {
-          setLoginError(
-            "Server error during Google Sign-In. Please try again later."
-          );
+          setLoginError("Server error during Google Sign-In. Please try again later.");
         }
       } finally {
         setSubmitting(false);
@@ -114,8 +111,7 @@ const Login = () => {
       setLoginSuccess(false);
       const error = e as AxiosError<ServerErrorResponse>;
       const errorData = error.response?.data;
-      const msg =
-        errorData?.message || "Login failed. Please check your credentials.";
+      const msg = errorData?.message || "Login failed. Please check your credentials.";
       setLoginError(msg);
       // collect server validation errors if present
       const errs: string[] = [];
@@ -123,19 +119,13 @@ const Login = () => {
         Object.values(errorData.errors).forEach((arr) => {
           if (Array.isArray(arr)) errs.push(...arr);
         });
-        if (
-          Array.isArray(errorData.errors.email) &&
-          errorData.errors.email[0]
-        ) {
+        if (Array.isArray(errorData.errors.email) && errorData.errors.email[0]) {
           setError("email", {
             type: "server",
             message: errorData.errors.email[0],
           });
         }
-        if (
-          Array.isArray(errorData.errors.password) &&
-          errorData.errors.password[0]
-        ) {
+        if (Array.isArray(errorData.errors.password) && errorData.errors.password[0]) {
           setError("password", {
             type: "server",
             message: errorData.errors.password[0],
@@ -150,18 +140,14 @@ const Login = () => {
   };
 
   // Fallback: Old method using credential (ID token only)
-  const handleGoogleSuccess = async (
-    credentialResponse: CredentialResponse
-  ) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     try {
       setSubmitting(true);
       setLoginError("");
       setServerErrors([]);
 
       // Decode the JWT credential to get user info
-      const decoded = jwtDecode<JwtPayload & GoogleUserInfo>(
-        credentialResponse.credential || ""
-      );
+      const decoded = jwtDecode<JwtPayload & GoogleUserInfo>(credentialResponse.credential || "");
 
       const userInfo: GoogleUserInfo = {
         name: decoded.name || "",
@@ -184,16 +170,13 @@ const Login = () => {
       setLoginSuccess(false);
       const error = e as AxiosError<ServerErrorResponse>;
       const errorData = error.response?.data;
-      const msg =
-        errorData?.message || "Google Sign-In failed. Please try again.";
+      const msg = errorData?.message || "Google Sign-In failed. Please try again.";
       setLoginError(msg);
 
       if (error.response?.status === 422) {
         setLoginError("Invalid Google credentials. Please try again.");
       } else if (error.response?.status === 500) {
-        setLoginError(
-          "Server error during Google Sign-In. Please try again later."
-        );
+        setLoginError("Server error during Google Sign-In. Please try again later.");
       }
     } finally {
       setSubmitting(false);

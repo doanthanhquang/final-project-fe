@@ -11,9 +11,7 @@ export function ViewModeToggle({ mode, onModeChange }: ViewModeToggleProps) {
       <button
         onClick={() => onModeChange("list")}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-          mode === "list"
-            ? "bg-white text-gray-900 shadow-sm"
-            : "text-gray-600 hover:text-gray-900"
+          mode === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
         }`}
         aria-label="List view"
       >

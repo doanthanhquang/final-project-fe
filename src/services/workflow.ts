@@ -38,9 +38,7 @@ export const workflowService = {
    * Get all workflow states for the authenticated user.
    */
   async getWorkflowStates(): Promise<WorkflowStatesResponse> {
-    const response = await api.get<WorkflowStatesResponse>(
-      "/workflow/states"
-    );
+    const response = await api.get<WorkflowStatesResponse>("/workflow/states");
     return response.data;
   },
 
@@ -51,19 +49,14 @@ export const workflowService = {
     emailId: string,
     data: UpdateWorkflowStateRequest
   ): Promise<{ success: boolean; data: WorkflowState }> {
-    const response = await api.post(
-      `/workflow/states/${emailId}`,
-      data
-    );
+    const response = await api.post(`/workflow/states/${emailId}`, data);
     return response.data;
   },
 
   /**
    * Initialize workflow state for an email.
    */
-  async initializeEmail(
-    emailId: string
-  ): Promise<{ success: boolean; data: WorkflowState }> {
+  async initializeEmail(emailId: string): Promise<{ success: boolean; data: WorkflowState }> {
     const response = await api.post(`/workflow/initialize/${emailId}`);
     return response.data;
   },
@@ -82,9 +75,7 @@ export const workflowService = {
   /**
    * Unsnooze an email.
    */
-  async unsnoozeEmail(
-    emailId: string
-  ): Promise<{ success: boolean; data: WorkflowState }> {
+  async unsnoozeEmail(emailId: string): Promise<{ success: boolean; data: WorkflowState }> {
     const response = await api.post(`/workflow/unsnooze/${emailId}`);
     return response.data;
   },
@@ -92,9 +83,7 @@ export const workflowService = {
   /**
    * Get or generate email summary.
    */
-  async getEmailSummary(
-    emailId: string
-  ): Promise<{ success: boolean; data: { summary: string } }> {
+  async getEmailSummary(emailId: string): Promise<{ success: boolean; data: { summary: string } }> {
     const response = await api.get(`/emails/${emailId}/summary`);
     return response.data;
   },

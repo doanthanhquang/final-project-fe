@@ -63,18 +63,11 @@ api.interceptors.response.use(
     const originalRequest = error.config as ExtendedAxiosRequestConfig;
     // Do not attempt refresh flow for auth endpoints; propagate original error
     const requestUrl = originalRequest?.url || "";
-    const isAuthEndpoint = [
-      "/api/login",
-      "/api/register",
-      "/api/refresh",
-      "/api/logout",
-    ].some((p) => requestUrl.includes(p));
+    const isAuthEndpoint = ["/api/login", "/api/register", "/api/refresh", "/api/logout"].some(
+      (p) => requestUrl.includes(p)
+    );
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !isAuthEndpoint
-    ) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       if (!isRefreshing) {

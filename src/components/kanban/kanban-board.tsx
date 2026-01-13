@@ -72,11 +72,7 @@ export function KanbanBoard({
 
   return (
     <div className="h-full flex flex-col">
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex-1 grid grid-cols-3 gap-4 p-6 overflow-hidden">
           {KANBAN_COLUMNS.map((column) => (
             <KanbanColumn

@@ -45,11 +45,7 @@ export function EmailDetail({
   const handleDownload = async (attachment: Attachment) => {
     setDownloading(attachment.id);
     try {
-      await emailService.downloadAttachment(
-        email.id,
-        attachment.id,
-        attachment.filename
-      );
+      await emailService.downloadAttachment(email.id, attachment.id, attachment.filename);
     } catch (error) {
       console.error("Failed to download attachment:", error);
       alert("Failed to download attachment");
@@ -78,12 +74,7 @@ export function EmailDetail({
             className="lg:hidden mb-4 p-2 text-gray-600 hover:text-gray-900 -ml-2"
             aria-label="Back to emails"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -109,12 +100,7 @@ export function EmailDetail({
                     title="Delete"
                     aria-label="Delete email"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -129,13 +115,9 @@ export function EmailDetail({
           </div>
           <div className="space-y-1 text-sm text-gray-600">
             <div>
-              <span className="font-medium">From:</span>{" "}
-              {email.from.name || email.from.email}
+              <span className="font-medium">From:</span> {email.from.name || email.from.email}
               {email.from.name && (
-                <span className="text-gray-500">
-                  {" "}
-                  &lt;{email.from.email}&gt;
-                </span>
+                <span className="text-gray-500"> &lt;{email.from.email}&gt;</span>
               )}
             </div>
             {email.to.length > 0 && (
@@ -151,8 +133,7 @@ export function EmailDetail({
               </div>
             )}
             <div>
-              <span className="font-medium">Date:</span>{" "}
-              {formatDate(email.date)}
+              <span className="font-medium">Date:</span> {formatDate(email.date)}
             </div>
           </div>
         </div>
@@ -160,9 +141,7 @@ export function EmailDetail({
         {/* Attachments */}
         {email.attachments.length > 0 && (
           <div className="mb-4 pb-4 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
-              Attachments
-            </h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
             <div className="space-y-2">
               {email.attachments.map((attachment) => (
                 <button
@@ -171,12 +150,7 @@ export function EmailDetail({
                   disabled={downloading === attachment.id}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -184,18 +158,12 @@ export function EmailDetail({
                       d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
                     />
                   </svg>
-                  <span className="flex-1 text-left">
-                    {attachment.filename}
-                  </span>
+                  <span className="flex-1 text-left">{attachment.filename}</span>
                   <span className="text-xs text-gray-500">
                     {(attachment.size / 1024).toFixed(1)} KB
                   </span>
                   {downloading === attachment.id && (
-                    <svg
-                      className="w-4 h-4 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle
                         className="opacity-25"
                         cx="12"

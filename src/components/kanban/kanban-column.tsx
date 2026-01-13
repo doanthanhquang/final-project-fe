@@ -11,7 +11,13 @@ interface KanbanColumnProps {
   onUnsnoozeClick?: (emailId: string) => void;
 }
 
-export function KanbanColumn({ column, emails, onEmailClick, onSnoozeClick, onUnsnoozeClick }: KanbanColumnProps) {
+export function KanbanColumn({
+  column,
+  emails,
+  onEmailClick,
+  onSnoozeClick,
+  onUnsnoozeClick,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -43,12 +49,7 @@ export function KanbanColumn({ column, emails, onEmailClick, onSnoozeClick, onUn
         <SortableContext items={emails.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           {emails.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <svg
-                className="w-12 h-12 mb-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

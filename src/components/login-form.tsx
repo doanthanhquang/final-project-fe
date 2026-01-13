@@ -107,9 +107,7 @@ export function LoginForm({
                   className={errors.email ? "border-destructive" : ""}
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">
-                    {errors.email.message as string}
-                  </p>
+                  <p className="text-sm text-destructive">{errors.email.message as string}</p>
                 )}
               </div>
 
@@ -130,9 +128,7 @@ export function LoginForm({
                         message: "Password must be at least 6 characters",
                       },
                     })}
-                    className={
-                      errors.password ? "border-destructive pr-10" : "pr-10"
-                    }
+                    className={errors.password ? "border-destructive pr-10" : "pr-10"}
                   />
                   <Button
                     type="button"
@@ -149,9 +145,7 @@ export function LoginForm({
                   </Button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-destructive">
-                    {errors.password.message as string}
-                  </p>
+                  <p className="text-sm text-destructive">{errors.password.message as string}</p>
                 )}
               </div>
 
@@ -167,9 +161,7 @@ export function LoginForm({
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
+                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
 
@@ -217,10 +209,7 @@ export function LoginForm({
           <CardFooter className="flex flex-col space-y-2">
             <div className="text-sm text-center text-muted-foreground">
               Don't have an account?{" "}
-              <Link
-                to="/signup"
-                className="text-primary hover:underline font-medium"
-              >
+              <Link to="/signup" className="text-primary hover:underline font-medium">
                 Sign Up
               </Link>
             </div>
