@@ -12,24 +12,6 @@ export function useEmailData() {
     retry: 1,
   });
 
-  // Fetch emails for selected mailbox
-  const getEmailsQuery = (mailboxId: string | null) =>
-    useQuery({
-      queryKey: ["emails", mailboxId],
-      queryFn: () => emailService.getEmails(mailboxId!, 1, 50),
-      enabled: !!mailboxId,
-      retry: 1,
-    });
-
-  // Fetch email detail
-  const getEmailDetailQuery = (emailId: string | null) =>
-    useQuery<EmailDetail>({
-      queryKey: ["email", emailId],
-      queryFn: () => emailService.getEmailDetail(emailId!),
-      enabled: !!emailId,
-      retry: 1,
-    });
-
   // Modify email mutation
   const modifyEmailMutation = useMutation({
     mutationFn: ({
@@ -49,8 +31,25 @@ export function useEmailData() {
 
   return {
     mailboxesQuery,
-    getEmailsQuery,
-    getEmailDetailQuery,
     modifyEmailMutation,
   };
+}
+
+// Separate hooks for emails and email detail
+export function useEmails(mailboxId: string | null) {
+  return useQuery({
+    queryKey: ["emails", mailboxId],
+    queryFn: () => emailService.getEmails(mailboxId!, 1, 50),
+    enabled: !!mailboxId,
+    retry: 1,
+  });
+}
+
+export function useEmailDetail(emailId: string | null) {
+  return useQuery<EmailDetail>({
+    queryKey: ["email", emailId],
+    queryFn: () => emailService.getEmailDetail(emailId!),
+    enabled: !!emailId,
+    retry: 1,
+  });
 }

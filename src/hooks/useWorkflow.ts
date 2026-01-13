@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { workflowService } from "@/services/workflow";
-import type { ColumnId, EmailCardData } from "@/types/kanban";
+import type { ColumnId } from "@/types/kanban";
 
 export function useWorkflow() {
   const queryClient = useQueryClient();

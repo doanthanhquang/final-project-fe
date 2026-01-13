@@ -12,7 +12,7 @@ import { SnoozePanel } from "@/components/kanban/snooze-panel";
 import { emailService } from "@/services/email";
 import { workflowService } from "@/services/workflow";
 import { Button } from "@/components/ui/button";
-import { useEmailData } from "@/hooks/useEmailData";
+import { useEmailData, useEmails, useEmailDetail } from "@/hooks/useEmailData";
 import { useResponsiveView } from "@/hooks/useResponsiveView";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import type { EmailCardData, ColumnId } from "@/types/kanban";
@@ -25,8 +25,7 @@ export default function EmailInbox() {
     return savedMode === "list" || savedMode === "kanban" ? savedMode : "kanban";
   });
 
-  const { mailboxesQuery, getEmailsQuery, getEmailDetailQuery, modifyEmailMutation } =
-    useEmailData();
+  const { mailboxesQuery, modifyEmailMutation } = useEmailData();
   const { mobileView, navigateToEmails, navigateToDetail, navigateToMailboxes } =
     useResponsiveView();
 
@@ -44,8 +43,8 @@ export default function EmailInbox() {
     selectedMailboxId ||
     (mailboxes.length > 0 ? (mailboxes.find((m) => m.id === "INBOX") || mailboxes[0]).id : null);
 
-  const { data: emailsData, isLoading: emailsLoading } = getEmailsQuery(effectiveMailboxId);
-  const { data: emailDetail, isLoading: emailDetailLoading } = getEmailDetailQuery(selectedEmailId);
+  const { data: emailsData, isLoading: emailsLoading } = useEmails(effectiveMailboxId);
+  const { data: emailDetail, isLoading: emailDetailLoading } = useEmailDetail(selectedEmailId);
 
   // Initialize workflow states for new emails
   useEffect(() => {

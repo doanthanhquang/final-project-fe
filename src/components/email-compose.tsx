@@ -97,8 +97,9 @@ export function EmailCompose({
       setSubject("");
       setBody("");
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to send email. Please try again.");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || "Failed to send email. Please try again.");
     } finally {
       setSending(false);
     }
