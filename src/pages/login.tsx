@@ -69,7 +69,7 @@ const Login = () => {
 
         setTimeout(() => {
           setLoginSuccess(false);
-          navigate("/dashboard");
+          navigate("/inbox");
         }, 1500);
       } catch (e) {
         setLoginSuccess(false);
@@ -95,7 +95,7 @@ const Login = () => {
 
   // Redirect to dashboard if already authenticated
   if (!initializing && isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/inbox" replace />;
   }
 
   const onSubmit = async (data: LoginFormData) => {
@@ -106,7 +106,7 @@ const Login = () => {
       await login({ email: data.email, password: data.password });
       setLoginSuccess(true);
       setTimeout(() => setLoginSuccess(false), 2000);
-      navigate("/dashboard");
+      navigate("/inbox");
     } catch (e) {
       setLoginSuccess(false);
       const error = e as AxiosError<ServerErrorResponse>;
@@ -164,7 +164,7 @@ const Login = () => {
 
       setTimeout(() => {
         setLoginSuccess(false);
-        navigate("/dashboard");
+        navigate("/inbox");
       }, 1500);
     } catch (e) {
       setLoginSuccess(false);
