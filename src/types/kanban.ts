@@ -26,4 +26,5 @@ export const KANBAN_COLUMNS: KanbanColumn[] = [
   { id: "inbox", title: "INBOX", color: "border-l-blue-500" },
   { id: "todo", title: "TO DO", color: "border-l-orange-500" },
   { id: "done", title: "DONE", color: "border-l-green-500" },
+  { id: "snoozed", title: "SNOOZED", color: "border-l-purple-500" },
 ];

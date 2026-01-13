@@ -9,6 +9,8 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { KanbanColumn } from "./kanban-column";
+import { KanbanTabs } from "./kanban-tabs";
+import { KanbanMobileView } from "./kanban-mobile-view";
 import { EmailCard } from "./email-card";
 import type { EmailCardData, ColumnId } from "@/types/kanban";
 import { KANBAN_COLUMNS } from "@/types/kanban";
@@ -29,6 +31,16 @@ export function KanbanBoard({
   onUnsnoozeClick,
 }: KanbanBoardProps) {
   const [activeEmail, setActiveEmail] = useState<EmailCardData | null>(null);
+  const [activeMobileTab, setActiveMobileTab] = useState<ColumnId>("inbox");
+
+  // Calculate email counts for each column
+  const emailCounts: Record<ColumnId, number> = {
+    inbox: emailsByColumn.inbox?.length || 0,
+    todo: emailsByColumn.todo?.length || 0,
+    in_progress: emailsByColumn.in_progress?.length || 0,
+    done: emailsByColumn.done?.length || 0,
+    snoozed: emailsByColumn.snoozed?.length || 0,
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,8 +84,16 @@ export function KanbanBoard({
 
   return (
     <div className="h-full flex flex-col">
+      {/* Mobile Tabs */}
+      <KanbanTabs
+        activeTab={activeMobileTab}
+        onTabChange={setActiveMobileTab}
+        emailCounts={emailCounts}
+      />
+
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex-1 grid grid-cols-3 gap-4 p-6 overflow-hidden">
+        {/* Desktop: Grid view with all columns */}
+        <div className="hidden md:flex flex-1 gap-4 p-6 overflow-hidden">
           {KANBAN_COLUMNS.map((column) => (
             <KanbanColumn
               key={column.id}
@@ -85,6 +105,15 @@ export function KanbanBoard({
             />
           ))}
         </div>
+
+        {/* Mobile: Single column view with tabs */}
+        <KanbanMobileView
+          activeColumn={activeMobileTab}
+          emails={emailsByColumn[activeMobileTab] || []}
+          onEmailClick={onEmailClick}
+          onSnoozeClick={onSnoozeClick}
+          onUnsnoozeClick={onUnsnoozeClick}
+        />
 
         <DragOverlay>
           {activeEmail ? (
