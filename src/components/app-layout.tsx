@@ -5,14 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 interface AppLayoutProps {
   children: ReactNode;
-  showDisconnect?: boolean;
-  onDisconnect?: () => void;
 }
 
 export function AppLayout({
   children,
-  showDisconnect = false,
-  onDisconnect,
 }: AppLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -41,16 +37,6 @@ export function AppLayout({
           </div>
 
           <div className="flex items-center gap-2">
-            {showDisconnect && onDisconnect && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDisconnect}
-                className="text-gray-700"
-              >
-                Disconnect Provider
-              </Button>
-            )}
             <Button
               variant="outline"
               size="sm"

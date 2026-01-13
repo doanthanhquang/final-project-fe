@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/protected-route";
-import EmailInbox from "./pages/dashboard";
+import EmailInbox from "./pages/inbox";
 import Login from "./pages/login";
 
 function App() {
@@ -8,14 +8,14 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
-        path="/dashboard"
+        path="/inbox"
         element={
           <ProtectedRoute>
             <EmailInbox />
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/inbox" replace />} />
     </Routes>
   );
 }

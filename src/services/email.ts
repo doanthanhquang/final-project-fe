@@ -184,8 +184,4 @@ export const emailService = {
     async handleGmailCallback(code: string, state: string): Promise<void> {
         await api.post('/auth/google/callback', { code, state });
     },
-
-    async disconnectProvider(): Promise<void> {
-        await api.post('/email-provider/disconnect');
-    },
 };

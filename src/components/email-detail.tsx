@@ -5,8 +5,6 @@ import { useState } from "react";
 interface EmailDetailProps {
   email: EmailDetail | null;
   loading?: boolean;
-  onReply?: (emailId: string) => void;
-  onForward?: (emailId: string) => void;
   onModify?: (
     emailId: string,
     actions: { read?: boolean; starred?: boolean; delete?: boolean }
@@ -18,8 +16,6 @@ interface EmailDetailProps {
 export function EmailDetail({
   email,
   loading,
-  onReply,
-  onForward,
   onModify,
   onBack,
   showBackButton,
@@ -160,28 +156,6 @@ export function EmailDetail({
             </div>
           </div>
         </div>
-
-        {/* Actions */}
-        {(onReply || onForward) && (
-          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-gray-200">
-            {onReply && (
-              <button
-                onClick={() => onReply(email.id)}
-                className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Reply
-              </button>
-            )}
-            {onForward && (
-              <button
-                onClick={() => onForward(email.id)}
-                className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Forward
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Attachments */}
         {email.attachments.length > 0 && (
