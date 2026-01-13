@@ -9,18 +9,30 @@ interface EmailCardProps {
   onClick?: () => void;
   onSnoozeClick?: (e: React.MouseEvent) => void;
   onUnsnoozeClick?: (e: React.MouseEvent) => void;
+  isDragOverlay?: boolean;
 }
 
-export function EmailCard({ email, onClick, onSnoozeClick, onUnsnoozeClick }: EmailCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+export function EmailCard({
+  email,
+  onClick,
+  onSnoozeClick,
+  onUnsnoozeClick,
+  isDragOverlay = false,
+}: EmailCardProps) {
+  const sortable = useSortable({
     id: email.id,
+    disabled: isDragOverlay,
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = sortable;
+
+  const style = isDragOverlay
+    ? {}
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+      };
 
   const timeAgo = email.date ? formatDistanceToNow(new Date(email.date), { addSuffix: false }) : "";
 
@@ -31,14 +43,14 @@ export function EmailCard({ email, onClick, onSnoozeClick, onUnsnoozeClick }: Em
 
   return (
     <div
-      ref={setNodeRef}
+      ref={isDragOverlay ? undefined : setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(isDragOverlay ? {} : attributes)}
+      {...(isDragOverlay ? {} : listeners)}
       onClick={onClick}
-      className={`bg-white rounded-lg border border-gray-200 p-4 mb-3 cursor-move hover:shadow-md transition-shadow ${
-        !email.read ? "border-l-4 border-l-blue-500" : ""
-      }`}
+      className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow ${
+        isDragOverlay ? "cursor-grabbing shadow-xl" : "cursor-move mb-3"
+      } ${!email.read ? "border-l-4 border-l-blue-500" : ""}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">

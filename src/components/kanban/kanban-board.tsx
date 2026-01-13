@@ -4,7 +4,8 @@ import {
   type DragEndEvent,
   DragOverlay,
   type DragStartEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -43,9 +44,15 @@ export function KanbanBoard({
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     })
   );
@@ -115,10 +122,10 @@ export function KanbanBoard({
           onUnsnoozeClick={onUnsnoozeClick}
         />
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeEmail ? (
-            <div className="opacity-90 cursor-grabbing">
-              <EmailCard email={activeEmail} />
+            <div className="w-[350px] sm:w-[400px]">
+              <EmailCard email={activeEmail} isDragOverlay={true} />
             </div>
           ) : null}
         </DragOverlay>
