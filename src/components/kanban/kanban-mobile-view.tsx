@@ -16,7 +16,17 @@ export function KanbanMobileView({
   onSnoozeClick,
   onUnsnoozeClick,
 }: KanbanMobileViewProps) {
-  const column = KANBAN_COLUMNS.find((col) => col.id === activeColumn);
+  // Find column from KANBAN_COLUMNS, or create snoozed column if needed
+  let column = KANBAN_COLUMNS.find((col) => col.id === activeColumn);
+
+  // Handle snoozed column (not in KANBAN_COLUMNS for desktop)
+  if (!column && activeColumn === "snoozed") {
+    column = {
+      id: "snoozed",
+      title: "SNOOZED",
+      color: "border-l-purple-500",
+    };
+  }
 
   if (!column) {
     return null;

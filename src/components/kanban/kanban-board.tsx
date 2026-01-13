@@ -93,7 +93,7 @@ export function KanbanBoard({
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* Desktop: Grid view with 3 columns (no snoozed) */}
-        <div className="hidden md:flex flex-1 gap-4 p-6 overflow-hidden">
+        <div className="hidden md:grid grid-cols-3 gap-4 p-6 overflow-hidden">
           {KANBAN_COLUMNS.map((column) => (
             <KanbanColumn
               key={column.id}

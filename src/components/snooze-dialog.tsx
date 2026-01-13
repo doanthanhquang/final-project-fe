@@ -66,7 +66,9 @@ export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: Snooze
       return;
     }
 
-    const snoozeUntil = `${customDate}T${customTime}:00`;
+    // Create date in local timezone (GMT+7) and format to ISO string
+    const localDateTime = new Date(`${customDate}T${customTime}:00`);
+    const snoozeUntil = localDateTime.toISOString();
     onSnooze(snoozeUntil, undefined);
     handleClose();
   };
