@@ -198,7 +198,11 @@ export function KanbanBoard({
     ) as ColumnId;
 
     if (currentColumn !== newColumnId) {
-      onEmailMove(emailId, newColumnId);
+      if (newColumnId === "snoozed" && onSnoozeClick) {
+        onSnoozeClick(emailId);
+      } else {
+        onEmailMove(emailId, newColumnId);
+      }
     }
   };
 
@@ -229,11 +233,12 @@ export function KanbanBoard({
         <FilterControls filters={filters} onFiltersChange={setFilters} />
       </div>
 
-      {/* Mobile Tabs - Shows snoozed tab when there are snoozed emails */}
+      {/* Mobile Tabs */}
       <KanbanTabs
         activeTab={activeMobileTab}
         onTabChange={setActiveMobileTab}
         emailCounts={emailCounts}
+        columns={columns}
       />
 
       {/* Mobile Controls */}

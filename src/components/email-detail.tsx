@@ -3,6 +3,7 @@ import { emailService } from "@/services/email";
 import { useState } from "react";
 import { StatusDialog } from "@/components/status-dialog";
 import { ErrorState } from "@/components/error-state";
+import { ExternalLink, Reply, Forward, MailMinus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,12 @@ export function EmailDetail({
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const handleOpenInGmail = () => {
+    if (!email) return;
+    const url = `https://mail.google.com/mail/u/0/#all/${email.id}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   if (loading) {
     return (
@@ -107,7 +114,7 @@ export function EmailDetail({
         {showBackButton && onBack && (
           <button
             onClick={onBack}
-            className="lg:hidden mb-4 p-2 text-gray-600 hover:text-gray-900 -ml-2"
+            className="md:hidden mb-4 p-2 text-gray-600 hover:text-gray-900 -ml-2"
             aria-label="Back to emails"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +134,16 @@ export function EmailDetail({
             <h1 className="text-xl md:text-2xl font-semibold text-gray-900 flex-1 break-words">
               {email.subject || "(No Subject)"}
             </h1>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2">
+              {/* Open in Gmail */}
+              <button
+                onClick={handleOpenInGmail}
+                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                title="Open in Gmail"
+                aria-label="Open in Gmail"
+              >
+                <ExternalLink className="w-5 h-5" />
+              </button>
               {/* Reply */}
               {onReply && (
                 <button
@@ -136,14 +152,7 @@ export function EmailDetail({
                   title="Reply"
                   aria-label="Reply to email"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 9V5l-7 7 7 7v-4h4a4 4 0 004-4V5"
-                    />
-                  </svg>
+                  <Reply className="w-5 h-5" />
                 </button>
               )}
               {/* Forward */}
@@ -154,14 +163,7 @@ export function EmailDetail({
                   title="Forward"
                   aria-label="Forward email"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7h-3a4 4 0 00-4 4v8M17 7l-5-5m0 0L7 7m5-5v18"
-                    />
-                  </svg>
+                  <Forward className="w-5 h-5" />
                 </button>
               )}
               {/* Mark as unread */}
@@ -174,14 +176,7 @@ export function EmailDetail({
                   title="Mark as unread"
                   aria-label="Mark email as unread"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 8l9-5 9 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"
-                    />
-                  </svg>
+                  <MailMinus className="w-5 h-5" />
                 </button>
               )}
               {/* Delete */}
@@ -192,14 +187,7 @@ export function EmailDetail({
                   title="Delete"
                   aria-label="Delete email"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
+                  <Trash2 className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -277,13 +265,12 @@ export function EmailDetail({
         )}
 
         {/* Body */}
-        <div className="prose max-w-none">
+        <div className="prose max-w-none break-words">
           {email.body_html ? (
             <div
               dangerouslySetInnerHTML={{ __html: email.body_html }}
-              className="email-body"
+              className="email-body max-w-full overflow-x-auto"
               style={{
-                // Basic sanitization - in production, use a proper sanitizer
                 maxWidth: "100%",
                 wordWrap: "break-word",
               }}

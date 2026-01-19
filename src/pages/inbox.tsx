@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { Clock } from "lucide-react";
 import { MailboxList } from "@/components/mailbox-list";
 import { EmailList } from "@/components/email-list";
 import { EmailDetail } from "@/components/email-detail";
@@ -475,20 +474,6 @@ export default function EmailInbox() {
                 Compose
               </Button>
               <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
-              {/* Snooze Button - Desktop Only */}
-              <button
-                onClick={() => setSnoozePanelOpen(true)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg border-2",
-                  "text-purple-700 font-medium shadow-sm max-md:hidden"
-                )}
-              >
-                <Clock className="w-5 h-5" />
-                <span>Snooze</span>
-                <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600 text-white">
-                  {emailsByColumn.snoozed.length}
-                </span>
-              </button>
             </div>
           </div>
           <HybridSearchBar
@@ -531,16 +516,13 @@ export default function EmailInbox() {
               }}
             />
           ) : (
-            <div className="flex h-full relative">
+            <div className="flex w-full h-full relative">
               {/* Traditional List View */}
               <div
-                className={`
-                ${mobileView === "mailboxes" ? "flex" : "hidden"}
-                md:flex
-                flex-col
-                w-full md:w-64
-                border-r border-gray-200
-              `}
+                className={cn(
+                  mobileView === "mailboxes" ? "flex" : "hidden",
+                  "md:flex flex-col w-full md:w-64 border-r border-gray-200"
+                )}
               >
                 <MailboxList
                   mailboxes={mailboxes}
@@ -556,13 +538,10 @@ export default function EmailInbox() {
               </div>
 
               <div
-                className={`
-                ${mobileView === "emails" ? "flex" : "hidden"}
-                md:flex
-                flex-col
-                w-full md:max-w-96 md:w-[30%]
-                border-r border-gray-200
-              `}
+                className={cn(
+                  mobileView === "emails" ? "flex" : "hidden",
+                  "md:flex flex-col w-full md:max-w-96 md:w-[30%] border-r border-gray-200"
+                )}
               >
                 <EmailList
                   emails={emailsData?.data || []}
@@ -585,7 +564,10 @@ export default function EmailInbox() {
               </div>
 
               <div
-                className={`${mobileView === "detail" && selectedEmailId ? "flex" : "hidden"} lg:flex flex-col w-full md:min-w-100 lg:flex-[2]`}
+                className={cn(
+                  mobileView === "detail" && selectedEmailId ? "flex" : "hidden",
+                  "lg:flex flex-col w-fit md:min-w-100"
+                )}
               >
                 <EmailDetail
                   email={emailDetail || null}
