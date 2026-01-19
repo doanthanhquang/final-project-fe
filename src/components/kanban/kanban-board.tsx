@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   DndContext,
   type DragEndEvent,
@@ -15,8 +15,9 @@ import { KanbanMobileView } from "./kanban-mobile-view";
 import { EmailCard } from "./email-card";
 import { SortControls, type SortOption } from "./sort-controls";
 import { FilterControls, type FilterOptions } from "./filter-controls";
-import type { EmailCardData, ColumnId } from "@/types/kanban";
-import { KANBAN_COLUMNS } from "@/types/kanban";
+import { KanbanSettingsModal } from "./kanban-settings-modal";
+import type { EmailCardData, ColumnId, KanbanColumn as KanbanColumnType } from "@/types/kanban";
+import { kanbanConfigService } from "@/services/kanban-config";
 
 interface KanbanBoardProps {
   emailsByColumn: Record<ColumnId, EmailCardData[]>;
@@ -40,16 +41,70 @@ export function KanbanBoard({
     unreadOnly: false,
     hasAttachments: false,
   });
+  const [columns, setColumns] = useState<KanbanColumnType[]>([]);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(true);
+
+  // Load columns from API
+  useEffect(() => {
+    loadColumns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadColumns = async () => {
+    setIsLoadingColumns(true);
+    try {
+      const configColumns = await kanbanConfigService.getColumns();
+
+      // Transform API columns to UI columns format
+      const uiColumns: KanbanColumnType[] = configColumns.map((col) => ({
+        id: col.column_id as ColumnId,
+        title: col.column_name.toUpperCase(),
+        color: getColumnColor(col.column_id),
+      }));
+
+      setColumns(uiColumns);
+
+      // Set first column as active mobile tab if available
+      if (uiColumns.length > 0 && !uiColumns.find((c) => c.id === activeMobileTab)) {
+        setActiveMobileTab(uiColumns[0].id);
+      }
+    } catch (error) {
+      console.error("Failed to load columns:", error);
+      // Fallback to default columns
+      setColumns([
+        { id: "inbox", title: "INBOX", color: "border-l-blue-500" },
+        { id: "todo", title: "TO DO", color: "border-l-orange-500" },
+        { id: "done", title: "DONE", color: "border-l-green-500" },
+      ]);
+    } finally {
+      setIsLoadingColumns(false);
+    }
+  };
+
+  // Helper function to assign colors to columns
+  const getColumnColor = (columnId: string): string => {
+    const colorMap: Record<string, string> = {
+      inbox: "border-l-blue-500",
+      todo: "border-l-orange-500",
+      in_progress: "border-l-yellow-500",
+      done: "border-l-green-500",
+      snoozed: "border-l-purple-500",
+    };
+    return colorMap[columnId] || "border-l-gray-500";
+  };
+
+  // Handle columns update from settings modal
+  const handleColumnsUpdate = () => {
+    loadColumns();
+  };
 
   // Apply sorting and filtering to emails
   const processedEmailsByColumn = useMemo(() => {
-    const processed: Record<ColumnId, EmailCardData[]> = {
-      inbox: [],
-      todo: [],
-      in_progress: [],
-      done: [],
-      snoozed: [],
-    };
+    // Initialize with empty arrays for all column IDs
+    const processed: Record<string, EmailCardData[]> = {};
+    columns.forEach((col) => {
+      processed[col.id] = [];
+    });
 
     Object.keys(emailsByColumn).forEach((columnId) => {
       let emails = [...(emailsByColumn[columnId as ColumnId] || [])];
@@ -79,20 +134,20 @@ export function KanbanBoard({
         emails.sort((a, b) => a.sender.name.localeCompare(b.sender.name));
       }
 
-      processed[columnId as ColumnId] = emails;
+      processed[columnId] = emails;
     });
 
-    return processed;
-  }, [emailsByColumn, sortOption, filters]);
+    return processed as Record<ColumnId, EmailCardData[]>;
+  }, [emailsByColumn, sortOption, filters, columns]);
 
   // Calculate email counts for each column (after filtering)
-  const emailCounts: Record<ColumnId, number> = {
-    inbox: processedEmailsByColumn.inbox?.length || 0,
-    todo: processedEmailsByColumn.todo?.length || 0,
-    in_progress: processedEmailsByColumn.in_progress?.length || 0,
-    done: processedEmailsByColumn.done?.length || 0,
-    snoozed: processedEmailsByColumn.snoozed?.length || 0,
-  };
+  const emailCounts: Record<ColumnId, number> = useMemo(() => {
+    const counts: Record<string, number> = {};
+    columns.forEach((col) => {
+      counts[col.id] = processedEmailsByColumn[col.id]?.length || 0;
+    });
+    return counts as Record<ColumnId, number>;
+  }, [columns, processedEmailsByColumn]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -140,11 +195,22 @@ export function KanbanBoard({
     }
   };
 
+  if (isLoadingColumns) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center text-gray-500">Loading columns...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Controls - Desktop Only */}
       <div className="hidden md:flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white gap-4">
-        <SortControls sortOption={sortOption} onSortChange={setSortOption} />
+        <div className="flex items-center gap-3">
+          <SortControls sortOption={sortOption} onSortChange={setSortOption} />
+          <KanbanSettingsModal onColumnsUpdate={handleColumnsUpdate} />
+        </div>
         <FilterControls filters={filters} onFiltersChange={setFilters} />
       </div>
 
@@ -157,14 +223,22 @@ export function KanbanBoard({
 
       {/* Mobile Controls */}
       <div className="md:hidden flex flex-col gap-2 px-4 py-2 border-b border-gray-200 bg-white">
-        <SortControls sortOption={sortOption} onSortChange={setSortOption} />
+        <div className="flex items-center gap-2">
+          <SortControls sortOption={sortOption} onSortChange={setSortOption} />
+          <KanbanSettingsModal onColumnsUpdate={handleColumnsUpdate} />
+        </div>
         <FilterControls filters={filters} onFiltersChange={setFilters} />
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* Desktop: Grid view with 3 columns (no snoozed) */}
-        <div className="hidden md:grid grid-cols-3 gap-4 p-6 overflow-hidden">
-          {KANBAN_COLUMNS.map((column) => (
+        {/* Desktop: Grid view with dynamic columns */}
+        <div
+          className="hidden md:grid gap-4 p-6 overflow-hidden"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(columns.length, 4)}, minmax(0, 1fr))`,
+          }}
+        >
+          {columns.map((column) => (
             <KanbanColumn
               key={column.id}
               column={column}

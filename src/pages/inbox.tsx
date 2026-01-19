@@ -9,7 +9,7 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { SnoozeDialog } from "@/components/snooze-dialog";
 import { SnoozePanel } from "@/components/kanban/snooze-panel";
-import { SearchBar } from "@/components/search-bar";
+import { SearchAutoSuggest } from "@/components/search-auto-suggest";
 import { SearchResults } from "@/components/search-results";
 import { emailService } from "@/services/email";
 import { workflowService } from "@/services/workflow";
@@ -320,10 +320,10 @@ export default function EmailInbox() {
               </button>
             </div>
           </div>
-          <SearchBar
+          <SearchAutoSuggest
             onSearch={handleSearch}
             onClear={handleClearSearch}
-            placeholder="Search emails (fuzzy search enabled)..."
+            placeholder="Search emails (semantic search with suggestions)..."
           />
         </div>
 
