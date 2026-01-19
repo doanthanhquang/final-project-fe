@@ -36,10 +36,10 @@ export function useEmailData() {
 }
 
 // Separate hooks for emails and email detail
-export function useEmails(mailboxId: string | null) {
+export function useEmails(mailboxId: string | null, page: number = 1, limit: number = 50) {
   return useQuery({
-    queryKey: ["emails", mailboxId],
-    queryFn: () => emailService.getEmails(mailboxId!, 1, 50),
+    queryKey: ["emails", mailboxId, page, limit],
+    queryFn: () => emailService.getEmails(mailboxId!, page, limit),
     enabled: !!mailboxId,
     retry: 1,
   });

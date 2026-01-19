@@ -41,13 +41,19 @@ export default function EmailInbox() {
   const [emailToSnooze, setEmailToSnooze] = useState<{ id: string; subject: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
+  const [emailPage, setEmailPage] = useState<number>(1);
+  const emailLimit = 50;
 
   // Auto-select first mailbox when loaded
   const effectiveMailboxId =
     selectedMailboxId ||
     (mailboxes.length > 0 ? (mailboxes.find((m) => m.id === "INBOX") || mailboxes[0]).id : null);
 
-  const { data: emailsData, isLoading: emailsLoading } = useEmails(effectiveMailboxId);
+  const { data: emailsData, isLoading: emailsLoading } = useEmails(
+    effectiveMailboxId,
+    emailPage,
+    emailLimit
+  );
   const { data: emailDetail, isLoading: emailDetailLoading } = useEmailDetail(selectedEmailId);
 
   // Search query
@@ -63,8 +69,8 @@ export default function EmailInbox() {
       emailsData.data.forEach((email) => {
         const hasWorkflowState = workflowStatesQuery.data?.data
           ? Object.values(workflowStatesQuery.data.data)
-            .flat()
-            .some((state) => state.email_id === email.id)
+              .flat()
+              .some((state) => state.email_id === email.id)
           : false;
 
         if (!hasWorkflowState) {
@@ -360,6 +366,7 @@ export default function EmailInbox() {
                   onSelectMailbox={(id) => {
                     setSelectedMailboxId(id);
                     setSelectedEmailId(null);
+                    setEmailPage(1); // Reset to first page when changing mailbox
                     navigateToEmails();
                   }}
                   loading={mailboxesLoading}
@@ -389,6 +396,8 @@ export default function EmailInbox() {
                   loading={emailsLoading}
                   onBack={navigateToMailboxes}
                   showBackButton={true}
+                  pagination={emailsData?.pagination}
+                  onPageChange={setEmailPage}
                 />
               </div>
 

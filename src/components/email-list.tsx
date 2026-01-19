@@ -1,5 +1,6 @@
-import { type EmailListItem } from "@/services/email";
+import { type EmailListItem, type PaginatedResponse } from "@/services/email";
 import { cn } from "@/lib/utils";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface EmailListProps {
   emails: EmailListItem[];
@@ -8,6 +9,8 @@ interface EmailListProps {
   loading?: boolean;
   onBack?: () => void;
   showBackButton?: boolean;
+  pagination?: PaginatedResponse<EmailListItem>["pagination"];
+  onPageChange?: (page: number) => void;
 }
 
 export function EmailList({
@@ -17,6 +20,8 @@ export function EmailList({
   loading,
   onBack,
   showBackButton,
+  pagination,
+  onPageChange,
 }: EmailListProps) {
   if (loading) {
     return (
@@ -148,6 +153,11 @@ export function EmailList({
           </button>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {pagination && onPageChange && (
+        <PaginationControls pagination={pagination} onPageChange={onPageChange} loading={loading} />
+      )}
     </div>
   );
 }
