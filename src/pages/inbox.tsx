@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { MailboxList } from "@/components/mailbox-list";
 import { EmailList } from "@/components/email-list";
@@ -9,6 +9,8 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { SnoozeDialog } from "@/components/snooze-dialog";
 import { SnoozePanel } from "@/components/kanban/snooze-panel";
+import { SearchBar } from "@/components/search-bar";
+import { SearchResults } from "@/components/search-results";
 import { emailService } from "@/services/email";
 import { workflowService } from "@/services/workflow";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,8 @@ export default function EmailInbox() {
   const [snoozeDialogOpen, setSnoozeDialogOpen] = useState(false);
   const [snoozePanelOpen, setSnoozePanelOpen] = useState(false);
   const [emailToSnooze, setEmailToSnooze] = useState<{ id: string; subject: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
 
   // Auto-select first mailbox when loaded
   const effectiveMailboxId =
@@ -46,14 +50,21 @@ export default function EmailInbox() {
   const { data: emailsData, isLoading: emailsLoading } = useEmails(effectiveMailboxId);
   const { data: emailDetail, isLoading: emailDetailLoading } = useEmailDetail(selectedEmailId);
 
+  // Search query
+  const searchQueryResult = useQuery({
+    queryKey: ["emailSearch", searchQuery],
+    queryFn: () => emailService.searchEmails(searchQuery, {}, 1, 50, true),
+    enabled: isSearching && searchQuery.length > 0,
+  });
+
   // Initialize workflow states for new emails
   useEffect(() => {
     if (emailsData?.data && viewMode === "kanban") {
       emailsData.data.forEach((email) => {
         const hasWorkflowState = workflowStatesQuery.data?.data
           ? Object.values(workflowStatesQuery.data.data)
-              .flat()
-              .some((state) => state.email_id === email.id)
+            .flat()
+            .some((state) => state.email_id === email.id)
           : false;
 
         if (!hasWorkflowState) {
@@ -210,6 +221,45 @@ export default function EmailInbox() {
     localStorage.setItem("email-view-mode", mode);
   };
 
+  // Search handlers
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setIsSearching(true);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
+  };
+
+  // Convert search results to EmailCardData format
+  const searchResults = useMemo(() => {
+    if (!searchQueryResult.data?.data) {
+      return [];
+    }
+
+    return searchQueryResult.data.data.map((email) => {
+      // Extract sender name and email
+      const fromMatch = email.from.match(/^(.+?)\s*<(.+?)>$|^(.+)$/);
+      const senderName = fromMatch ? fromMatch[1] || fromMatch[3] || email.from : email.from;
+      const senderEmail = fromMatch ? fromMatch[2] || email.from : email.from;
+
+      return {
+        id: email.id,
+        sender: {
+          name: senderName,
+          email: senderEmail,
+        },
+        subject: email.subject,
+        summary: `From ${email.from}: ${email.subject}`,
+        date: email.date,
+        read: email.read,
+        hasAttachments: email.has_attachments || false,
+        relevance_score: email.relevance_score,
+      } as EmailCardData & { relevance_score?: number };
+    });
+  }, [searchQueryResult.data]);
+
   // Handle connection status
   if (
     mailboxesQuery.error &&
@@ -242,31 +292,49 @@ export default function EmailInbox() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        {/* Header with View Mode Toggle */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
-          <h1 className="text-xl font-semibold text-gray-900">AI Email Flow</h1>
-          <div className="flex flex-row gap-2 items-center">
-            <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
-            {/* Snooze Button - Desktop Only */}
-            <button
-              onClick={() => setSnoozePanelOpen(true)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg border-2",
-                "text-purple-700 font-medium shadow-sm max-md:hidden"
-              )}
-            >
-              <Clock className="w-5 h-5" />
-              <span>Snooze</span>
-              <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600 text-white">
-                {emailsByColumn.snoozed.length}
-              </span>
-            </button>
+        {/* Header with Search Bar and View Mode Toggle */}
+        <div className="flex flex-col gap-3 px-6 py-3 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-gray-900">AI Email Flow</h1>
+            <div className="flex flex-row gap-2 items-center">
+              <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
+              {/* Snooze Button - Desktop Only */}
+              <button
+                onClick={() => setSnoozePanelOpen(true)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg border-2",
+                  "text-purple-700 font-medium shadow-sm max-md:hidden"
+                )}
+              >
+                <Clock className="w-5 h-5" />
+                <span>Snooze</span>
+                <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-bold rounded-full bg-purple-600 text-white">
+                  {emailsByColumn.snoozed.length}
+                </span>
+              </button>
+            </div>
           </div>
+          <SearchBar
+            onSearch={handleSearch}
+            onClear={handleClearSearch}
+            placeholder="Search emails (fuzzy search enabled)..."
+          />
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
-          {viewMode === "kanban" ? (
+          {isSearching ? (
+            <div className="h-full p-6">
+              <SearchResults
+                results={searchResults}
+                query={searchQuery}
+                isLoading={searchQueryResult.isLoading}
+                error={searchQueryResult.error ? "Failed to search emails" : null}
+                onClear={handleClearSearch}
+                onEmailClick={handleEmailClick}
+              />
+            </div>
+          ) : viewMode === "kanban" ? (
             <KanbanBoard
               emailsByColumn={emailsByColumn}
               onEmailMove={handleEmailMove}
@@ -303,7 +371,7 @@ export default function EmailInbox() {
                 ${mobileView === "emails" ? "flex" : "hidden"}
                 md:flex
                 flex-col
-                w-full md:w-96 lg:flex-1
+                w-full md:max-w-96 md:w-[30%]
                 border-r border-gray-200
               `}
               >
@@ -325,12 +393,7 @@ export default function EmailInbox() {
               </div>
 
               <div
-                className={`
-                ${mobileView === "detail" && selectedEmailId ? "flex" : "hidden"}
-                lg:flex
-                flex-col
-                w-full lg:flex-[2]
-              `}
+                className={`${mobileView === "detail" && selectedEmailId ? "flex" : "hidden"} lg:flex flex-col w-full md:min-w-100 lg:flex-[2]`}
               >
                 <EmailDetail
                   email={emailDetail || null}

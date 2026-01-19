@@ -167,11 +167,12 @@ export const emailService = {
     query: string,
     filters: { unread_only?: boolean; has_attachments?: boolean } = {},
     page = 1,
-    limit = 50
-  ): Promise<PaginatedResponse<EmailListItem>> {
+    limit = 50,
+    fuzzy = false
+  ): Promise<PaginatedResponse<EmailListItem & { relevance_score?: number }>> {
     const response = await api.get<{
       success: boolean;
-      data: EmailListItem[];
+      data: (EmailListItem & { relevance_score?: number })[];
       pagination: {
         current_page: number;
         per_page: number;
@@ -179,8 +180,8 @@ export const emailService = {
         last_page: number;
         has_more: boolean;
       };
-    }>("/emails/search", {
-      params: { query, ...filters, page, limit },
+    }>("/search/emails", {
+      params: { query, ...filters, page, limit, fuzzy: fuzzy ? 1 : 0 },
     });
     return {
       data: response.data.data,
