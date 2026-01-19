@@ -1,26 +1,46 @@
 import type { EmailDetail, Attachment } from "@/services/email";
 import { emailService } from "@/services/email";
 import { useState } from "react";
+import { StatusDialog } from "@/components/status-dialog";
+import { ErrorState } from "@/components/error-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface EmailDetailProps {
   email: EmailDetail | null;
   loading?: boolean;
+  error?: Error | null;
   onModify?: (
     emailId: string,
     actions: { read?: boolean; starred?: boolean; delete?: boolean }
   ) => void;
   onBack?: () => void;
   showBackButton?: boolean;
+  onReply?: (emailId: string) => void;
+  onForward?: (emailId: string) => void;
+  onMarkUnread?: (emailId: string) => void;
 }
 
 export function EmailDetail({
   email,
   loading,
+  error,
   onModify,
   onBack,
   showBackButton,
+  onReply,
+  onForward,
+  onMarkUnread,
 }: EmailDetailProps) {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   if (loading) {
     return (
@@ -30,6 +50,18 @@ export function EmailDetail({
           <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2" />
           <div className="h-32 bg-gray-200 animate-pulse rounded" />
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 bg-white p-8">
+        <ErrorState
+          title="Failed to load email"
+          message={error.message || "An error occurred while loading this email."}
+          className="py-12"
+        />
       </div>
     );
   }
@@ -44,11 +76,15 @@ export function EmailDetail({
 
   const handleDownload = async (attachment: Attachment) => {
     setDownloading(attachment.id);
+    setDownloadError(null);
     try {
       await emailService.downloadAttachment(email.id, attachment.id, attachment.filename);
     } catch (error) {
       console.error("Failed to download attachment:", error);
-      alert("Failed to download attachment");
+      const errorMsg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to download attachment";
+      setDownloadError(errorMsg);
     } finally {
       setDownloading(null);
     }
@@ -92,24 +128,79 @@ export function EmailDetail({
               {email.subject || "(No Subject)"}
             </h1>
             <div className="flex gap-2 flex-shrink-0">
+              {/* Reply */}
+              {onReply && (
+                <button
+                  onClick={() => onReply(email.id)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                  title="Reply"
+                  aria-label="Reply to email"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 9V5l-7 7 7 7v-4h4a4 4 0 004-4V5"
+                    />
+                  </svg>
+                </button>
+              )}
+              {/* Forward */}
+              {onForward && (
+                <button
+                  onClick={() => onForward(email.id)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                  title="Forward"
+                  aria-label="Forward email"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7h-3a4 4 0 00-4 4v8M17 7l-5-5m0 0L7 7m5-5v18"
+                    />
+                  </svg>
+                </button>
+              )}
+              {/* Mark as unread */}
+              {(onMarkUnread || onModify) && (
+                <button
+                  onClick={() =>
+                    onMarkUnread ? onMarkUnread(email.id) : onModify?.(email.id, { read: false })
+                  }
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                  title="Mark as unread"
+                  aria-label="Mark email as unread"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 8l9-5 9 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {/* Delete */}
               {onModify && (
-                <>
-                  <button
-                    onClick={() => onModify(email.id, { delete: true })}
-                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
-                    title="Delete"
-                    aria-label="Delete email"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </>
+                <button
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
+                  title="Delete"
+                  aria-label="Delete email"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           </div>
@@ -204,6 +295,42 @@ export function EmailDetail({
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete email?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            This will move the email to the Gmail trash. You can restore it from Gmail if needed.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onModify?.(email.id, { delete: true });
+                setDeleteDialogOpen(false);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Download Error Dialog */}
+      {downloadError && (
+        <StatusDialog
+          open={true}
+          title="Download failed"
+          description={downloadError}
+          onClose={() => setDownloadError(null)}
+        />
+      )}
     </div>
   );
 }

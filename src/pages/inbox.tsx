@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { MailboxList } from "@/components/mailbox-list";
@@ -19,6 +19,10 @@ import { useResponsiveView } from "@/hooks/useResponsiveView";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import type { EmailCardData, ColumnId } from "@/types/kanban";
 import { cn } from "@/lib/utils";
+import { EmailCompose } from "@/components/email-compose";
+import { useEmailActions } from "@/hooks/useEmailActions";
+import { StatusDialog } from "@/components/status-dialog";
+import { ErrorState } from "@/components/error-state";
 
 export default function EmailInbox() {
   const queryClient = useQueryClient();
@@ -44,6 +48,35 @@ export default function EmailInbox() {
   const [emailPage, setEmailPage] = useState<number>(1);
   const emailLimit = 50;
 
+  const {
+    composeMode,
+    replyToEmailId,
+    forwardEmailId,
+    handleCompose,
+    handleReply,
+    handleForward,
+    handleCloseCompose,
+  } = useEmailActions();
+
+  const [composeInitialData, setComposeInitialData] = useState<{
+    subject: string;
+    body: string;
+    to: string[];
+  } | null>(null);
+
+  const [statusDialog, setStatusDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+  });
+
+  // Track initialized emails to prevent duplicate initialization
+  const initializedEmailsRef = useRef<Set<string>>(new Set());
+
   // Auto-select first mailbox when loaded
   const effectiveMailboxId =
     selectedMailboxId ||
@@ -54,7 +87,12 @@ export default function EmailInbox() {
     emailPage,
     emailLimit
   );
-  const { data: emailDetail, isLoading: emailDetailLoading } = useEmailDetail(selectedEmailId);
+  const emailDetailQuery = useEmailDetail(selectedEmailId);
+  const {
+    data: emailDetail,
+    isLoading: emailDetailLoading,
+    error: emailDetailError,
+  } = emailDetailQuery;
 
   // Search query
   const searchQueryResult = useQuery({
@@ -65,20 +103,29 @@ export default function EmailInbox() {
 
   // Initialize workflow states for new emails
   useEffect(() => {
-    if (emailsData?.data && viewMode === "kanban") {
-      emailsData.data.forEach((email) => {
-        const hasWorkflowState = workflowStatesQuery.data?.data
-          ? Object.values(workflowStatesQuery.data.data)
-              .flat()
-              .some((state) => state.email_id === email.id)
-          : false;
+    if (emailsData?.data && viewMode === "kanban" && workflowStatesQuery.data?.data) {
+      const workflowStates = Object.values(workflowStatesQuery.data.data).flat();
+      const existingEmailIds = new Set(workflowStates.map((state) => state.email_id));
 
-        if (!hasWorkflowState) {
-          initializeEmailMutation.mutate(email.id);
+      emailsData.data.forEach((email) => {
+        // Skip if already initialized or already has workflow state
+        if (initializedEmailsRef.current.has(email.id) || existingEmailIds.has(email.id)) {
+          return;
         }
+
+        // Mark as initializing to prevent duplicate calls
+        initializedEmailsRef.current.add(email.id);
+        initializeEmailMutation.mutate(email.id, {
+          onError: () => {
+            // Remove from set on error so we can retry
+            initializedEmailsRef.current.delete(email.id);
+          },
+        });
       });
     }
-  }, [emailsData?.data, viewMode, workflowStatesQuery.data, initializeEmailMutation]);
+    // Only depend on emailsData and viewMode, not workflowStatesQuery.data to avoid loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailsData?.data, viewMode]);
 
   // Prepare email data for Kanban board
   const emailsByColumn = useMemo(() => {
@@ -131,10 +178,68 @@ export default function EmailInbox() {
     emailId: string,
     actions: { read?: boolean; starred?: boolean; delete?: boolean }
   ) => {
-    modifyEmailMutation.mutate({ emailId, actions });
+    modifyEmailMutation.mutate(
+      { emailId, actions },
+      {
+        onSuccess: () => {
+          if (actions.delete) {
+            setStatusDialog({
+              open: true,
+              title: "Email deleted",
+              description: "The email has been moved to the Gmail trash.",
+            });
+          }
+        },
+      }
+    );
     if (actions.delete) {
       setSelectedEmailId(null);
     }
+  };
+
+  const handleReplyFromDetail = () => {
+    if (!emailDetail) return;
+
+    const subject = emailDetail.subject.startsWith("Re:")
+      ? emailDetail.subject
+      : `Re: ${emailDetail.subject}`;
+
+    const originalBody = emailDetail.body_text || emailDetail.body_html || "";
+
+    const body = `\n\nOn ${new Date(emailDetail.date).toLocaleString()}, ${
+      emailDetail.from.email
+    } wrote:\n${originalBody}`;
+
+    setComposeInitialData({
+      subject,
+      body,
+      to: [emailDetail.from.email],
+    });
+    handleReply(emailDetail.id);
+  };
+
+  const handleForwardFromDetail = () => {
+    if (!emailDetail) return;
+
+    const subject = emailDetail.subject.startsWith("Fwd:")
+      ? emailDetail.subject
+      : `Fwd: ${emailDetail.subject}`;
+
+    const originalBody = emailDetail.body_text || emailDetail.body_html || "";
+
+    const body =
+      `\n\n---------- Forwarded message ----------\n` +
+      `From: ${emailDetail.from.email}\n` +
+      `Date: ${new Date(emailDetail.date).toLocaleString()}\n` +
+      `Subject: ${emailDetail.subject}\n\n` +
+      originalBody;
+
+    setComposeInitialData({
+      subject,
+      body,
+      to: [],
+    });
+    handleForward(emailDetail.id);
   };
 
   const handleEmailMove = (emailId: string, newColumnId: ColumnId) => {
@@ -266,33 +371,52 @@ export default function EmailInbox() {
     });
   }, [searchQueryResult.data]);
 
-  // Handle connection status
-  if (
-    mailboxesQuery.error &&
-    (mailboxesQuery.error as { response?: { status?: number } })?.response?.status === 400
-  ) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-4">No Email Provider Connected</h2>
-            <p className="text-gray-600 mb-4">Please connect your Gmail account to get started.</p>
-            <Button
-              onClick={async () => {
-                try {
-                  const authUrl = await emailService.connectGmail();
-                  window.location.href = authUrl;
-                } catch (error) {
-                  console.error("Failed to initiate Gmail connection:", error);
-                }
-              }}
-            >
-              Connect Gmail
-            </Button>
+  // Handle connection status and errors
+  if (mailboxesQuery.isError) {
+    const error = mailboxesQuery.error as {
+      response?: { status?: number; data?: { message?: string } };
+    };
+    if (error?.response?.status === 400) {
+      return (
+        <AppLayout>
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold mb-4">No Email Provider Connected</h2>
+              <p className="text-gray-600 mb-4">
+                Please connect your Gmail account to get started.
+              </p>
+              <Button
+                onClick={async () => {
+                  try {
+                    const authUrl = await emailService.connectGmail();
+                    window.location.href = authUrl;
+                  } catch (error) {
+                    console.error("Failed to initiate Gmail connection:", error);
+                  }
+                }}
+              >
+                Connect Gmail
+              </Button>
+            </div>
           </div>
-        </div>
-      </AppLayout>
-    );
+        </AppLayout>
+      );
+    }
+    // Show error state for mailboxes if there's an error
+    if (error?.response?.status !== 400) {
+      return (
+        <AppLayout>
+          <ErrorState
+            title="Failed to load mailboxes"
+            message={
+              error?.response?.data?.message || "An error occurred while loading your mailboxes."
+            }
+            onRetry={() => mailboxesQuery.refetch()}
+            className="h-screen"
+          />
+        </AppLayout>
+      );
+    }
   }
 
   return (
@@ -303,6 +427,9 @@ export default function EmailInbox() {
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900">AI Email Flow</h1>
             <div className="flex flex-row gap-2 items-center">
+              <Button onClick={handleCompose} variant="default">
+                Compose
+              </Button>
               <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
               {/* Snooze Button - Desktop Only */}
               <button
@@ -398,6 +525,7 @@ export default function EmailInbox() {
                   showBackButton={true}
                   pagination={emailsData?.pagination}
                   onPageChange={setEmailPage}
+                  onToggleRead={(id, read) => handleModifyEmail(id, { read })}
                 />
               </div>
 
@@ -407,9 +535,13 @@ export default function EmailInbox() {
                 <EmailDetail
                   email={emailDetail || null}
                   loading={emailDetailLoading}
+                  error={emailDetailLoading ? null : (emailDetailError as Error | null)}
                   onModify={handleModifyEmail}
                   onBack={navigateToEmails}
                   showBackButton={true}
+                  onReply={handleReplyFromDetail}
+                  onForward={handleForwardFromDetail}
+                  onMarkUnread={(id) => handleModifyEmail(id, { read: false })}
                 />
               </div>
             </div>
@@ -439,6 +571,37 @@ export default function EmailInbox() {
             onUnsnoozeClick={handleUnsnooze}
           />
         )}
+
+        {/* Compose Modal */}
+        <EmailCompose
+          open={composeMode !== null}
+          onClose={() => {
+            handleCloseCompose();
+            setComposeInitialData(null);
+          }}
+          mode={composeMode || "compose"}
+          replyToEmailId={composeMode === "reply" ? replyToEmailId || undefined : undefined}
+          forwardEmailId={composeMode === "forward" ? forwardEmailId || undefined : undefined}
+          initialSubject={composeInitialData?.subject}
+          initialBody={composeInitialData?.body}
+          initialTo={composeInitialData?.to || []}
+          onSent={(m) => {
+            queryClient.invalidateQueries({ queryKey: ["emails"] });
+            setStatusDialog({
+              open: true,
+              title:
+                m === "reply" ? "Reply sent" : m === "forward" ? "Email forwarded" : "Email sent",
+              description: "Your message has been delivered via Gmail.",
+            });
+          }}
+        />
+
+        <StatusDialog
+          open={statusDialog.open}
+          title={statusDialog.title}
+          description={statusDialog.description}
+          onClose={() => setStatusDialog((prev) => ({ ...prev, open: false }))}
+        />
       </div>
     </AppLayout>
   );

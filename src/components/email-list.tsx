@@ -1,6 +1,9 @@
 import { type EmailListItem, type PaginatedResponse } from "@/services/email";
 import { cn } from "@/lib/utils";
 import { PaginationControls } from "@/components/pagination-controls";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { EmptyState } from "@/components/empty-state";
+import { Mail } from "lucide-react";
 
 interface EmailListProps {
   emails: EmailListItem[];
@@ -11,6 +14,7 @@ interface EmailListProps {
   showBackButton?: boolean;
   pagination?: PaginatedResponse<EmailListItem>["pagination"];
   onPageChange?: (page: number) => void;
+  onToggleRead?: (emailId: string, read: boolean) => void;
 }
 
 export function EmailList({
@@ -22,39 +26,43 @@ export function EmailList({
   showBackButton,
   pagination,
   onPageChange,
+  onToggleRead,
 }: EmailListProps) {
   if (loading) {
     return (
-      <div className="flex-1 border-r border-gray-200 bg-white p-4">
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-20 bg-gray-200 animate-pulse rounded" />
-          ))}
-        </div>
+      <div className="flex-1 border-r border-gray-200 bg-white">
+        <LoadingSpinner text="Loading emails..." className="py-12" />
       </div>
     );
   }
 
   if (emails.length === 0) {
     return (
-      <div className="flex-1 border-r border-gray-200 bg-white p-8 flex flex-col items-center justify-center">
+      <div className="flex-1 border-r border-gray-200 bg-white relative">
         {showBackButton && onBack && (
-          <button
-            onClick={onBack}
-            className="md:hidden absolute top-4 left-4 p-2 text-gray-600 hover:text-gray-900"
-            aria-label="Back to mailboxes"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
+          <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 p-3 flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="p-2 text-gray-600 hover:text-gray-900 -ml-2"
+              aria-label="Back to mailboxes"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <h2 className="text-lg font-semibold">Emails</h2>
+          </div>
         )}
-        <p className="text-gray-500">No emails in this mailbox</p>
+        <EmptyState
+          icon={<Mail className="h-12 w-12" />}
+          title="No emails"
+          description="This mailbox is empty. New emails will appear here."
+        />
       </div>
     );
   }
@@ -116,6 +124,23 @@ export function EmailList({
             aria-current={selectedEmailId === email.id ? "true" : undefined}
           >
             <div className="flex items-start gap-3">
+              {/* Read / Unread toggle */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleRead?.(email.id, !email.read);
+                }}
+                className="mt-1"
+                aria-label={email.read ? "Mark as unread" : "Mark as read"}
+              >
+                <span
+                  className={cn(
+                    "inline-block w-2 h-2 rounded-full border",
+                    email.read ? "border-gray-300 bg-transparent" : "border-blue-600 bg-blue-600"
+                  )}
+                />
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span

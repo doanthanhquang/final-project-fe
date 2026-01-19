@@ -16,6 +16,8 @@ import { EmailCard } from "./email-card";
 import { SortControls, type SortOption } from "./sort-controls";
 import { FilterControls, type FilterOptions } from "./filter-controls";
 import { KanbanSettingsModal } from "./kanban-settings-modal";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { ErrorState } from "@/components/error-state";
 import type { EmailCardData, ColumnId, KanbanColumn as KanbanColumnType } from "@/types/kanban";
 import { kanbanConfigService } from "@/services/kanban-config";
 
@@ -43,6 +45,7 @@ export function KanbanBoard({
   });
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
+  const [columnsError, setColumnsError] = useState<string | null>(null);
 
   // Load columns from API
   useEffect(() => {
@@ -63,6 +66,7 @@ export function KanbanBoard({
       }));
 
       setColumns(uiColumns);
+      setColumnsError(null);
 
       // Set first column as active mobile tab if available
       if (uiColumns.length > 0 && !uiColumns.find((c) => c.id === activeMobileTab)) {
@@ -70,6 +74,7 @@ export function KanbanBoard({
       }
     } catch (error) {
       console.error("Failed to load columns:", error);
+      setColumnsError("Failed to load Kanban columns. Please try again.");
       // Fallback to default columns
       setColumns([
         { id: "inbox", title: "INBOX", color: "border-l-blue-500" },
@@ -198,7 +203,15 @@ export function KanbanBoard({
   if (isLoadingColumns) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-center text-gray-500">Loading columns...</div>
+        <LoadingSpinner text="Loading columns..." />
+      </div>
+    );
+  }
+
+  if (columnsError) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <ErrorState message={columnsError} onRetry={loadColumns} />
       </div>
     );
   }

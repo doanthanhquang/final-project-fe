@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { emailService, type SendEmailData } from "@/services/email";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EmailComposeProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface EmailComposeProps {
   initialSubject?: string;
   initialBody?: string;
   initialTo?: string[];
+  onSent?: (mode: "compose" | "reply" | "forward") => void;
 }
 
 export function EmailCompose({
@@ -26,6 +28,7 @@ export function EmailCompose({
   initialSubject = "",
   initialBody = "",
   initialTo = [],
+  onSent,
 }: EmailComposeProps) {
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
@@ -90,7 +93,10 @@ export function EmailCompose({
         await emailService.sendEmail(emailData);
       }
 
-      // Reset form
+      // Notify caller of success
+      onSent?.(mode);
+
+      // Reset form and close
       setTo("");
       setCc("");
       setBcc("");
@@ -174,9 +180,9 @@ export function EmailCompose({
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
-              {error}
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <div className="flex justify-end gap-2">

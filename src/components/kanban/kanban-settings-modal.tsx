@@ -16,6 +16,9 @@ import {
   type KanbanColumnConfig,
   type GmailLabel,
 } from "@/services/kanban-config";
+import { StatusDialog } from "@/components/status-dialog";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { ErrorState } from "@/components/error-state";
 
 interface KanbanSettingsModalProps {
   onColumnsUpdate?: () => void;
@@ -30,6 +33,17 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
   const [editingName, setEditingName] = useState("");
   const [newColumnName, setNewColumnName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusDialog, setStatusDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+  }>({ open: false, title: "" });
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    open: boolean;
+    columnId: string | null;
+    columnName: string;
+  }>({ open: false, columnId: null, columnName: "" });
 
   // Load columns and Gmail labels when modal opens
   useEffect(() => {
@@ -47,9 +61,10 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
       ]);
       setColumns(columnsData);
       setGmailLabels(labelsData);
+      setError(null);
     } catch (error) {
       console.error("Failed to load Kanban configuration:", error);
-      alert("Failed to load configuration. Please try again.");
+      setError("Failed to load configuration. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +72,11 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
 
   const handleCreateColumn = async () => {
     if (!newColumnName.trim()) {
-      alert("Column name cannot be empty");
+      setStatusDialog({
+        open: true,
+        title: "Invalid input",
+        description: "Column name cannot be empty.",
+      });
       return;
     }
 
@@ -67,9 +86,18 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
       setNewColumnName("");
       await loadData();
       onColumnsUpdate?.();
+      setStatusDialog({
+        open: true,
+        title: "Column created",
+        description: `"${newColumnName.trim()}" has been added successfully.`,
+      });
     } catch (error) {
       console.error("Failed to create column:", error);
-      alert("Failed to create column. Please try again.");
+      setStatusDialog({
+        open: true,
+        title: "Failed to create column",
+        description: "Please try again later.",
+      });
     } finally {
       setIsCreating(false);
     }
@@ -77,7 +105,11 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
 
   const handleRenameColumn = async (columnId: string) => {
     if (!editingName.trim()) {
-      alert("Column name cannot be empty");
+      setStatusDialog({
+        open: true,
+        title: "Invalid input",
+        description: "Column name cannot be empty.",
+      });
       return;
     }
 
@@ -89,28 +121,47 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
       setEditingName("");
       await loadData();
       onColumnsUpdate?.();
+      setStatusDialog({
+        open: true,
+        title: "Column renamed",
+        description: `Column has been renamed to "${editingName.trim()}".`,
+      });
     } catch (error) {
       console.error("Failed to rename column:", error);
-      alert("Failed to rename column. Please try again.");
+      setStatusDialog({
+        open: true,
+        title: "Failed to rename column",
+        description: "Please try again later.",
+      });
     }
   };
 
   const handleDeleteColumn = async (columnId: string, columnName: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the column "${columnName}"? This action cannot be undone.`
-    );
+    setDeleteConfirmDialog({ open: true, columnId, columnName });
+  };
 
-    if (!confirmed) return;
+  const confirmDeleteColumn = async () => {
+    const { columnId, columnName } = deleteConfirmDialog;
+    if (!columnId) return;
 
+    setDeleteConfirmDialog({ open: false, columnId: null, columnName: "" });
     try {
       await kanbanConfigService.deleteColumn(columnId);
       await loadData();
       onColumnsUpdate?.();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+      setStatusDialog({
+        open: true,
+        title: "Column deleted",
+        description: `"${columnName}" has been deleted successfully.`,
+      });
+    } catch (error: unknown) {
       console.error("Failed to delete column:", error);
-      const errorMsg = error?.message || "Failed to delete column";
-      alert(errorMsg);
+      const errorMsg = (error as { message?: string })?.message || "Failed to delete column";
+      setStatusDialog({
+        open: true,
+        title: "Failed to delete column",
+        description: errorMsg,
+      });
     }
   };
 
@@ -123,7 +174,11 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
       onColumnsUpdate?.();
     } catch (error) {
       console.error("Failed to update label mapping:", error);
-      alert("Failed to update label mapping. Please try again.");
+      setStatusDialog({
+        open: true,
+        title: "Failed to update label",
+        description: "Please try again later.",
+      });
     }
   };
 
@@ -155,7 +210,9 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
 
         <div className="flex-1 overflow-y-auto py-4">
           {isLoading ? (
-            <div className="text-center py-8 text-gray-500">Loading...</div>
+            <LoadingSpinner text="Loading configuration..." className="py-8" />
+          ) : error ? (
+            <ErrorState message={error} onRetry={loadData} />
           ) : (
             <div className="space-y-4">
               {/* Existing Columns */}
@@ -234,6 +291,7 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
                                 handleDeleteColumn(column.column_id, column.column_name)
                               }
                               className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              disabled={isLoading}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -278,6 +336,45 @@ export function KanbanSettingsModal({ onColumnsUpdate }: KanbanSettingsModalProp
           <Button onClick={() => setOpen(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Status Dialog */}
+      <StatusDialog
+        open={statusDialog.open}
+        title={statusDialog.title}
+        description={statusDialog.description}
+        onClose={() => setStatusDialog({ open: false, title: "" })}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmDialog.open}
+        onOpenChange={(open) =>
+          !open && setDeleteConfirmDialog({ open: false, columnId: null, columnName: "" })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete column?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete the column &quot;{deleteConfirmDialog.columnName}&quot;?
+            This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setDeleteConfirmDialog({ open: false, columnId: null, columnName: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteColumn}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

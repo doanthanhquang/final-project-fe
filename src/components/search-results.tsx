@@ -1,5 +1,8 @@
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { EmptyState } from "@/components/empty-state";
+import { ErrorState } from "@/components/error-state";
 import type { EmailCardData } from "@/types/kanban";
 
 interface SearchResultsProps {
@@ -20,37 +23,28 @@ export function SearchResults({
   onEmailClick,
 }: SearchResultsProps) {
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-4"></div>
-        <p className="text-sm text-gray-500">Searching...</p>
-      </div>
-    );
+    return <LoadingSpinner text="Searching..." className="py-12" />;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <p className="text-sm text-red-600 mb-4">{error}</p>
-        <Button onClick={onClear} variant="outline">
-          Clear search
-        </Button>
-      </div>
+      <ErrorState message={error} onRetry={onClear} retryLabel="Clear search" className="py-12" />
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Search className="h-12 w-12 text-gray-300 mb-4" />
-        <p className="text-lg font-medium text-gray-700 mb-2">No results found</p>
-        <p className="text-sm text-gray-500 mb-4">
-          No emails match your search for &quot;{query}&quot;
-        </p>
-        <Button onClick={onClear} variant="outline">
-          Clear search
-        </Button>
-      </div>
+      <EmptyState
+        icon={<Search className="h-12 w-12" />}
+        title="No results found"
+        description={`No emails match your search for "${query}"`}
+        action={
+          <Button onClick={onClear} variant="outline">
+            Clear search
+          </Button>
+        }
+        className="py-12"
+      />
     );
   }
 

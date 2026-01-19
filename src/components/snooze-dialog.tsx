@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { StatusDialog } from "@/components/status-dialog";
 import { format, addHours, addDays, nextSaturday, nextMonday } from "date-fns";
 
 interface SnoozeDialogProps {
@@ -22,6 +23,10 @@ type QuickOption = "later_today" | "tomorrow" | "this_weekend" | "next_week";
 export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: SnoozeDialogProps) {
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("");
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({
+    open: false,
+    message: "",
+  });
 
   const quickOptions: Array<{
     id: QuickOption;
@@ -62,7 +67,10 @@ export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: Snooze
 
   const handleCustomSnooze = () => {
     if (!customDate || !customTime) {
-      alert("Please select both date and time");
+      setErrorDialog({
+        open: true,
+        message: "Please select both date and time",
+      });
       return;
     }
 
@@ -158,6 +166,14 @@ export function SnoozeDialog({ isOpen, onClose, onSnooze, emailSubject }: Snooze
           </div>
         </div>
       </DialogContent>
+
+      {/* Error Dialog */}
+      <StatusDialog
+        open={errorDialog.open}
+        title="Invalid input"
+        description={errorDialog.message}
+        onClose={() => setErrorDialog({ open: false, message: "" })}
+      />
     </Dialog>
   );
 }

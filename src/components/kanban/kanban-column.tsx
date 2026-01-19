@@ -1,6 +1,8 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { EmailCard } from "./email-card";
+import { EmptyState } from "@/components/empty-state";
+import { Mail } from "lucide-react";
 import type { EmailCardData, KanbanColumn as KanbanColumnType } from "@/types/kanban";
 
 interface KanbanColumnProps {
@@ -43,17 +45,12 @@ export function KanbanColumn({
       >
         <SortableContext items={emails.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           {emails.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-              <p className="text-sm">No emails here</p>
-            </div>
+            <EmptyState
+              icon={<Mail className="h-8 w-8" />}
+              title="No emails"
+              description="Drag emails here to organize them"
+              className="py-8"
+            />
           ) : (
             emails.map((email) => (
               <EmailCard
