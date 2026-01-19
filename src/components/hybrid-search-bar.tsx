@@ -1,25 +1,62 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, X, User, Hash } from "lucide-react";
+import { Search, X, User, Hash, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { searchSuggestionService, type SearchSuggestion } from "@/services/search-suggestions";
 
-interface SearchAutoSuggestProps {
-  onSearch: (query: string) => void;
+export type SearchMode = "smart" | "fuzzy" | "semantic";
+
+interface HybridSearchBarProps {
+  onSearch: (query: string, mode: SearchMode, actualMode?: SearchMode) => void;
   onClear?: () => void;
   placeholder?: string;
   defaultValue?: string;
   debounceMs?: number;
 }
 
-export function SearchAutoSuggest({
+/**
+ * Determines which search mode to use based on query characteristics.
+ * Smart mode heuristic:
+ * - Use Fuzzy if query contains '@' OR many digits/symbols OR <=2 words
+ * - Otherwise use Semantic
+ */
+function determineSmartMode(query: string): "fuzzy" | "semantic" {
+  const trimmed = query.trim();
+
+  // Check for '@' symbol (email address)
+  if (trimmed.includes("@")) {
+    return "fuzzy";
+  }
+
+  // Count words
+  const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length <= 2) {
+    return "fuzzy";
+  }
+
+  // Count digits and symbols (excluding spaces and common punctuation)
+  const digitSymbolCount = (trimmed.match(/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/g) || []).length;
+
+  const totalChars = trimmed.length;
+
+  // If more than 30% are digits/symbols, use fuzzy
+  if (totalChars > 0 && digitSymbolCount / totalChars > 0.3) {
+    return "fuzzy";
+  }
+
+  // Default to semantic for natural language queries
+  return "semantic";
+}
+
+export function HybridSearchBar({
   onSearch,
   onClear,
   placeholder = "Search emails...",
   defaultValue = "",
-  debounceMs = 300,
-}: SearchAutoSuggestProps) {
+  debounceMs = 250,
+}: HybridSearchBarProps) {
   const [query, setQuery] = useState(defaultValue);
+  const [searchMode, setSearchMode] = useState<SearchMode>("smart");
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -27,7 +64,6 @@ export function SearchAutoSuggest({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Handle keyboard shortcut (Ctrl+K / Cmd+K)
@@ -70,7 +106,7 @@ export function SearchAutoSuggest({
 
     setIsLoadingSuggestions(true);
     try {
-      const results = await searchSuggestionService.getSuggestions(searchQuery, 1);
+      const results = await searchSuggestionService.getSuggestions(searchQuery, 5);
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
       setSelectedIndex(-1);
@@ -85,12 +121,10 @@ export function SearchAutoSuggest({
 
   // Handle query change with debounced suggestion fetching
   useEffect(() => {
-    // Clear previous timer
     if (suggestionTimerRef.current) {
       clearTimeout(suggestionTimerRef.current);
     }
 
-    // If query is empty, clear suggestions immediately
     if (query.trim() === "") {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -100,7 +134,6 @@ export function SearchAutoSuggest({
       return;
     }
 
-    // Debounce suggestion fetching (shorter delay for better UX)
     suggestionTimerRef.current = setTimeout(() => {
       fetchSuggestions(query);
     }, debounceMs);
@@ -115,7 +148,6 @@ export function SearchAutoSuggest({
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showSuggestions || suggestions.length === 0) {
-      // If Enter is pressed without suggestions, trigger search
       if (e.key === "Enter") {
         e.preventDefault();
         handleSearch(query);
@@ -149,18 +181,23 @@ export function SearchAutoSuggest({
   };
 
   const handleSearch = (searchQuery: string) => {
-    if (searchQuery.trim()) {
-      // Clear timers
-      if (suggestionTimerRef.current) {
-        clearTimeout(suggestionTimerRef.current);
-      }
-      if (searchTimerRef.current) {
-        clearTimeout(searchTimerRef.current);
-      }
-
-      setShowSuggestions(false);
-      onSearch(searchQuery.trim());
+    if (!searchQuery.trim()) {
+      return;
     }
+
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+    }
+
+    setShowSuggestions(false);
+
+    // Determine actual mode to use
+    let actualMode: SearchMode = searchMode;
+    if (searchMode === "smart") {
+      actualMode = determineSmartMode(searchQuery);
+    }
+
+    onSearch(searchQuery.trim(), searchMode, actualMode);
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
@@ -180,12 +217,8 @@ export function SearchAutoSuggest({
     setShowSuggestions(false);
     setSelectedIndex(-1);
 
-    // Clear timers
     if (suggestionTimerRef.current) {
       clearTimeout(suggestionTimerRef.current);
-    }
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
     }
 
     if (onClear) {
@@ -204,43 +237,84 @@ export function SearchAutoSuggest({
     }
   };
 
+  const getModeIcon = (mode: SearchMode) => {
+    switch (mode) {
+      case "smart":
+        return <Sparkles className="h-4 w-4" />;
+      case "fuzzy":
+        return <Zap className="h-4 w-4" />;
+      case "semantic":
+        return <Sparkles className="h-4 w-4" />;
+    }
+  };
+
   return (
     <div className="w-full max-w-2xl relative">
-      <div className="relative flex items-center">
-        <Search className="absolute left-3 h-4 w-4 text-gray-400 z-10" />
-        <Input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setShowSuggestions(true);
-            }
-          }}
-          placeholder={placeholder}
-          className="pl-10 pr-20 h-10"
-          autoComplete="off"
-        />
-        {query && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="absolute right-2 h-6 w-6 p-0 z-10"
-            aria-label="Clear search"
+      <div className="relative flex items-center gap-2">
+        {/* Mode Selector */}
+        <div className="relative">
+          <select
+            value={searchMode}
+            onChange={(e) => {
+              const newMode = e.target.value as SearchMode;
+              setSearchMode(newMode);
+
+              // If there is already a query, immediately search with the newly selected mode
+              if (query.trim()) {
+                handleSearch(query);
+              }
+            }}
+            className="appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+            aria-label="Search mode"
           >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-        <div className="absolute right-12 hidden sm:flex items-center gap-1 text-xs text-gray-400 pointer-events-none z-10">
-          <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">
-            {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}
-          </kbd>
-          <span>+</span>
-          <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">K</kbd>
+            <option value="smart">Smart</option>
+            <option value="fuzzy">Fuzzy</option>
+            <option value="semantic">Semantic (AI)</option>
+          </select>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            {getModeIcon(searchMode)}
+          </div>
+        </div>
+
+        {/* Search Input */}
+        <div className="relative flex-1 flex items-center">
+          <Search className="absolute left-3 h-4 w-4 text-gray-400 z-10" />
+          <Input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (suggestions.length > 0) {
+                setShowSuggestions(true);
+              }
+            }}
+            placeholder={placeholder}
+            className="pl-10 pr-20 h-10"
+            autoComplete="off"
+          />
+          {query && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleClear}
+              className="absolute right-2 h-6 w-6 p-0 z-10"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          <div className="absolute right-12 hidden sm:flex items-center gap-1 text-xs text-gray-400 pointer-events-none z-10">
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">
+              {typeof navigator !== "undefined" && navigator.platform?.includes("Mac")
+                ? "⌘"
+                : "Ctrl"}
+            </kbd>
+            <span>+</span>
+            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">K</kbd>
+          </div>
         </div>
       </div>
 

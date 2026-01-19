@@ -2,8 +2,8 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface FilterOptions {
-  unreadOnly: boolean;
-  hasAttachments: boolean;
+  unreadOnly: number;
+  hasAttachments: number;
   senderFilter?: string;
 }
 
@@ -14,23 +14,24 @@ interface FilterControlsProps {
 
 export function FilterControls({ filters, onFiltersChange }: FilterControlsProps) {
   const toggleUnreadOnly = () => {
+    console.log("toggleUnreadOnly", filters.unreadOnly);
     onFiltersChange({
       ...filters,
-      unreadOnly: !filters.unreadOnly,
+      unreadOnly: !filters.unreadOnly ? 1 : 0,
     });
   };
 
   const toggleHasAttachments = () => {
     onFiltersChange({
       ...filters,
-      hasAttachments: !filters.hasAttachments,
+      hasAttachments: !filters.unreadOnly ? 1 : 0,
     });
   };
 
   const clearFilters = () => {
     onFiltersChange({
-      unreadOnly: false,
-      hasAttachments: false,
+      unreadOnly: 0,
+      hasAttachments: 0,
       senderFilter: undefined,
     });
   };
@@ -41,12 +42,12 @@ export function FilterControls({ filters, onFiltersChange }: FilterControlsProps
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-sm text-gray-600">Filter:</span>
       <Button
-        variant={filters.unreadOnly ? "default" : "outline"}
+        variant={filters.unreadOnly === 1 ? "default" : "outline"}
         size="sm"
         onClick={toggleUnreadOnly}
         className="h-7 px-3 text-xs"
       >
-        {filters.unreadOnly && <Check className="h-3 w-3 mr-1" />}
+        {!!filters.unreadOnly && <Check className="h-3 w-3 mr-1" />}
         Unread Only
       </Button>
       <Button
@@ -55,7 +56,7 @@ export function FilterControls({ filters, onFiltersChange }: FilterControlsProps
         onClick={toggleHasAttachments}
         className="h-7 px-3 text-xs"
       >
-        {filters.hasAttachments && <Check className="h-3 w-3 mr-1" />}
+        {!!filters.hasAttachments && <Check className="h-3 w-3 mr-1" />}
         With Attachments
       </Button>
       {hasActiveFilters && (

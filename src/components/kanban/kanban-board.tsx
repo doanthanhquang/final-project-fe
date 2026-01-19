@@ -27,6 +27,8 @@ interface KanbanBoardProps {
   onEmailClick?: (emailId: string) => void;
   onSnoozeClick?: (emailId: string) => void;
   onUnsnoozeClick?: (emailId: string) => void;
+  filters?: FilterOptions;
+  onFiltersChange?: (filters: FilterOptions) => void;
 }
 
 export function KanbanBoard({
@@ -35,14 +37,20 @@ export function KanbanBoard({
   onEmailClick,
   onSnoozeClick,
   onUnsnoozeClick,
+  filters: externalFilters,
+  onFiltersChange: externalOnFiltersChange,
 }: KanbanBoardProps) {
   const [activeEmail, setActiveEmail] = useState<EmailCardData | null>(null);
   const [activeMobileTab, setActiveMobileTab] = useState<ColumnId>("inbox");
   const [sortOption, setSortOption] = useState<SortOption>(null);
-  const [filters, setFilters] = useState<FilterOptions>({
-    unreadOnly: false,
-    hasAttachments: false,
+  const [internalFilters, setInternalFilters] = useState<FilterOptions>({
+    unreadOnly: 0,
+    hasAttachments: 0,
   });
+
+  // Use external filters if provided, otherwise use internal state
+  const filters = externalFilters ?? internalFilters;
+  const setFilters = externalOnFiltersChange ?? setInternalFilters;
   const [columns, setColumns] = useState<KanbanColumnType[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
   const [columnsError, setColumnsError] = useState<string | null>(null);
@@ -114,13 +122,7 @@ export function KanbanBoard({
     Object.keys(emailsByColumn).forEach((columnId) => {
       let emails = [...(emailsByColumn[columnId as ColumnId] || [])];
 
-      // Apply filters
-      if (filters.unreadOnly) {
-        emails = emails.filter((email) => !email.read);
-      }
-      if (filters.hasAttachments) {
-        emails = emails.filter((email) => email.hasAttachments);
-      }
+      // Apply filters (only senderFilter is client-side, unreadOnly and hasAttachments are handled by API)
       if (filters.senderFilter) {
         const filterLower = filters.senderFilter.toLowerCase();
         emails = emails.filter(

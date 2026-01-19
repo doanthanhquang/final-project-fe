@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { MailboxList } from "@/components/mailbox-list";
 import { EmailList } from "@/components/email-list";
@@ -9,15 +9,17 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { SnoozeDialog } from "@/components/snooze-dialog";
 import { SnoozePanel } from "@/components/kanban/snooze-panel";
-import { SearchAutoSuggest } from "@/components/search-auto-suggest";
+import { HybridSearchBar, type SearchMode } from "@/components/hybrid-search-bar";
 import { SearchResults } from "@/components/search-results";
-import { emailService } from "@/services/email";
+import { emailService, type EmailListItem } from "@/services/email";
 import { workflowService } from "@/services/workflow";
 import { Button } from "@/components/ui/button";
 import { useEmailData, useEmails, useEmailDetail } from "@/hooks/useEmailData";
 import { useResponsiveView } from "@/hooks/useResponsiveView";
 import { useWorkflow } from "@/hooks/useWorkflow";
 import type { EmailCardData, ColumnId } from "@/types/kanban";
+import { useSearchFuzzy } from "@/contexts/use-search-fuzzy";
+import { useSearchSemantic } from "@/contexts/use-search-semantic";
 import { cn } from "@/lib/utils";
 import { EmailCompose } from "@/components/email-compose";
 import { useEmailActions } from "@/hooks/useEmailActions";
@@ -44,9 +46,14 @@ export default function EmailInbox() {
   const [snoozePanelOpen, setSnoozePanelOpen] = useState(false);
   const [emailToSnooze, setEmailToSnooze] = useState<{ id: string; subject: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [actualSearchMode, setActualSearchMode] = useState<SearchMode>("smart");
   const [isSearching, setIsSearching] = useState(false);
   const [emailPage, setEmailPage] = useState<number>(1);
   const emailLimit = 50;
+  const [emailFilters, setEmailFilters] = useState<{
+    unread_only?: number;
+    has_attachments?: number;
+  }>({});
 
   const {
     composeMode,
@@ -85,7 +92,8 @@ export default function EmailInbox() {
   const { data: emailsData, isLoading: emailsLoading } = useEmails(
     effectiveMailboxId,
     emailPage,
-    emailLimit
+    emailLimit,
+    emailFilters
   );
   const emailDetailQuery = useEmailDetail(selectedEmailId);
   const {
@@ -94,12 +102,13 @@ export default function EmailInbox() {
     error: emailDetailError,
   } = emailDetailQuery;
 
-  // Search query
-  const searchQueryResult = useQuery({
-    queryKey: ["emailSearch", searchQuery],
-    queryFn: () => emailService.searchEmails(searchQuery, {}, 1, 50, true),
-    enabled: isSearching && searchQuery.length > 0,
-  });
+  // Search query hooks (fuzzy & semantic)
+  const fuzzySearchQuery = useSearchFuzzy(searchQuery, { limit: 5, page: 1, enabled: false });
+  const semanticSearchQuery = useSearchSemantic(searchQuery, { limit: 5, page: 1, enabled: false });
+
+  // Determine which query result to use
+  const searchQueryResult =
+    actualSearchMode === "semantic" ? semanticSearchQuery : fuzzySearchQuery;
 
   // Initialize workflow states for new emails
   useEffect(() => {
@@ -332,14 +341,37 @@ export default function EmailInbox() {
     localStorage.setItem("email-view-mode", mode);
   };
 
-  // Search handlers
-  const handleSearch = (query: string) => {
+  // Search handlers with Smart mode logic and fallback
+  const handleSearch = async (query: string, mode: SearchMode, actualMode?: SearchMode) => {
+    console.log("handleSearch", mode);
     setSearchQuery(query);
+    const effectiveMode = actualMode || mode;
+    setActualSearchMode(effectiveMode);
     setIsSearching(true);
+
+    // Execute search based on mode
+    if (effectiveMode === "semantic") {
+      semanticSearchQuery.refetch();
+    } else {
+      // Fuzzy search
+      fuzzySearchQuery.refetch().then((result) => {
+        // Smart mode fallback: if fuzzy returns empty, try semantic
+        if (
+          mode === "smart" &&
+          result.data?.data &&
+          result.data.data.length === 0 &&
+          effectiveMode === "fuzzy"
+        ) {
+          setActualSearchMode("semantic");
+          semanticSearchQuery.refetch();
+        }
+      });
+    }
   };
 
   const handleClearSearch = () => {
     setSearchQuery("");
+    setActualSearchMode("smart");
     setIsSearching(false);
   };
 
@@ -355,6 +387,18 @@ export default function EmailInbox() {
       const senderName = fromMatch ? fromMatch[1] || fromMatch[3] || email.from : email.from;
       const senderEmail = fromMatch ? fromMatch[2] || email.from : email.from;
 
+      // Handle both relevance_score (fuzzy) and similarity_score (semantic)
+      const emailWithScore = email as EmailListItem & {
+        relevance_score?: number;
+        similarity_score?: number;
+      };
+      const score =
+        emailWithScore.relevance_score !== undefined
+          ? emailWithScore.relevance_score
+          : emailWithScore.similarity_score !== undefined
+            ? emailWithScore.similarity_score * 100 // Convert 0-1 to 0-100
+            : undefined;
+
       return {
         id: email.id,
         sender: {
@@ -366,7 +410,7 @@ export default function EmailInbox() {
         date: email.date,
         read: email.read,
         hasAttachments: email.has_attachments || false,
-        relevance_score: email.relevance_score,
+        relevance_score: score,
       } as EmailCardData & { relevance_score?: number };
     });
   }, [searchQueryResult.data]);
@@ -447,10 +491,10 @@ export default function EmailInbox() {
               </button>
             </div>
           </div>
-          <SearchAutoSuggest
+          <HybridSearchBar
             onSearch={handleSearch}
             onClear={handleClearSearch}
-            placeholder="Search emails (semantic search with suggestions)..."
+            placeholder="Search emails..."
           />
         </div>
 
@@ -465,6 +509,7 @@ export default function EmailInbox() {
                 error={searchQueryResult.error ? "Failed to search emails" : null}
                 onClear={handleClearSearch}
                 onEmailClick={handleEmailClick}
+                searchMode={actualSearchMode}
               />
             </div>
           ) : viewMode === "kanban" ? (
@@ -474,6 +519,16 @@ export default function EmailInbox() {
               onEmailClick={handleEmailClick}
               onSnoozeClick={handleSnoozeClick}
               onUnsnoozeClick={handleUnsnooze}
+              filters={{
+                unreadOnly: emailFilters.unread_only || 0,
+                hasAttachments: emailFilters.has_attachments || 0,
+              }}
+              onFiltersChange={(filters) => {
+                setEmailFilters({
+                  unread_only: filters.unreadOnly || 0,
+                  has_attachments: filters.hasAttachments || 0,
+                });
+              }}
             />
           ) : (
             <div className="flex h-full relative">

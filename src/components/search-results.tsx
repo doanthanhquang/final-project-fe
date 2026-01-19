@@ -4,6 +4,7 @@ import { LoadingSpinner } from "@/components/loading-spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import type { EmailCardData } from "@/types/kanban";
+import type { SearchMode } from "@/components/hybrid-search-bar";
 
 interface SearchResultsProps {
   results: (EmailCardData & { relevance_score?: number })[];
@@ -12,6 +13,7 @@ interface SearchResultsProps {
   error?: string | null;
   onClear: () => void;
   onEmailClick?: (emailId: string) => void;
+  searchMode?: SearchMode;
 }
 
 export function SearchResults({
@@ -21,7 +23,18 @@ export function SearchResults({
   error = null,
   onClear,
   onEmailClick,
+  searchMode = "smart",
 }: SearchResultsProps) {
+  const getModeLabel = (mode: SearchMode) => {
+    switch (mode) {
+      case "smart":
+        return "Smart";
+      case "fuzzy":
+        return "Fuzzy";
+      case "semantic":
+        return "Semantic (AI)";
+    }
+  };
   if (isLoading) {
     return <LoadingSpinner text="Searching..." className="py-12" />;
   }
@@ -61,7 +74,12 @@ export function SearchResults({
               </span>
             )}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Results for &quot;{query}&quot;</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-gray-500">Results for &quot;{query}&quot;</p>
+            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+              {getModeLabel(searchMode)}
+            </span>
+          </div>
         </div>
         <Button onClick={onClear} variant="ghost" size="sm">
           <X className="h-4 w-4 mr-2" />

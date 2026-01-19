@@ -36,10 +36,15 @@ export function useEmailData() {
 }
 
 // Separate hooks for emails and email detail
-export function useEmails(mailboxId: string | null, page: number = 1, limit: number = 50) {
+export function useEmails(
+  mailboxId: string | null,
+  page: number = 1,
+  limit: number = 50,
+  filters: { unread_only?: number; has_attachments?: number } = {}
+) {
   return useQuery({
-    queryKey: ["emails", mailboxId, page, limit],
-    queryFn: () => emailService.getEmails(mailboxId!, page, limit),
+    queryKey: ["emails", mailboxId, page, limit, filters],
+    queryFn: () => emailService.getEmails(mailboxId!, page, limit, filters),
     enabled: !!mailboxId,
     retry: 1,
   });

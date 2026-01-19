@@ -86,7 +86,8 @@ export const emailService = {
   async getEmails(
     mailboxId: string,
     page = 1,
-    limit = 50
+    limit = 50,
+    filters: { unread_only?: number; has_attachments?: number } = {}
   ): Promise<PaginatedResponse<EmailListItem>> {
     const response = await api.get<{
       success: boolean;
@@ -99,7 +100,7 @@ export const emailService = {
         has_more: boolean;
       };
     }>(`/mailboxes/${mailboxId}/emails`, {
-      params: { page, limit },
+      params: { page, limit, ...filters },
     });
     return {
       data: response.data.data,
@@ -180,12 +181,47 @@ export const emailService = {
         last_page: number;
         has_more: boolean;
       };
-    }>("/search/emails", {
+    }>("/search/fuzzy", {
       params: { query, ...filters, page, limit, fuzzy: fuzzy ? 1 : 0 },
     });
     return {
       data: response.data.data,
       pagination: response.data.pagination,
+    };
+  },
+
+  async searchSemantic(
+    query: string,
+    limit = 50,
+    page = 1
+  ): Promise<
+    PaginatedResponse<EmailListItem & { similarity_score?: number }> & {
+      meta?: { took_ms?: number; model?: string };
+    }
+  > {
+    const response = await api.post<{
+      success: boolean;
+      data: (EmailListItem & { similarity_score?: number })[];
+      pagination: {
+        current_page: number;
+        per_page: number;
+        total: number;
+        last_page: number;
+        has_more: boolean;
+      };
+      meta?: {
+        took_ms?: number;
+        model?: string;
+      };
+    }>("/search/semantic", {
+      query,
+      limit,
+      page,
+    });
+    return {
+      data: response.data.data,
+      pagination: response.data.pagination,
+      meta: response.data.meta,
     };
   },
 
