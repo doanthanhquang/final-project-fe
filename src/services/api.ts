@@ -8,6 +8,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Required for httpOnly cookies (refresh token)
 });
 
 export interface User {
@@ -141,9 +142,9 @@ api.interceptors.response.use(
 
 export async function loginUser(credentials: LoginCredentials): Promise<AuthResponse> {
   const res = await api.post<AuthResponse>("/login", credentials);
-  const { accessToken, accessTokenExpiresAt, refreshToken } = res.data;
+  const { accessToken, accessTokenExpiresAt } = res.data;
+  // Only store access token in memory (refresh token is in httpOnly cookie)
   authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
-  authStorage.setRefreshToken(refreshToken);
   return res.data;
 }
 
@@ -157,37 +158,29 @@ export async function logout(): Promise<void> {
 
   isLoggingOut = true;
   try {
-    await api.post("/logout", {
-      refreshToken: authStorage.getRefreshToken(),
-    });
+    // Refresh token is in httpOnly cookie, server will clear it
+    await api.post("/logout");
   } catch {
     // Ignore logout errors
   } finally {
     authStorage.clearAccessToken();
-    authStorage.clearRefreshToken();
+    // Refresh token cookie is cleared by server
     isLoggingOut = false;
   }
 }
 
 export async function refreshAccessToken(): Promise<string> {
-  const refreshToken = authStorage.getRefreshToken();
-  if (!refreshToken) {
-    // Clear tokens if refresh token is missing
-    authStorage.clearAccessToken();
-    authStorage.clearRefreshToken();
-    throw new Error("Missing refresh token");
-  }
-
+  // Refresh token is in httpOnly cookie, automatically sent with request
   try {
-    const res = await api.post<AuthResponse>("/refresh", { refreshToken });
+    const res = await api.post<AuthResponse>("/refresh");
     const { accessToken, accessTokenExpiresAt } = res.data;
     authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
     return accessToken;
   } catch (error) {
-    // If refresh token is invalid or expired (401), clear all tokens
+    // If refresh token is invalid or expired (401), clear access token
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       authStorage.clearAccessToken();
-      authStorage.clearRefreshToken();
+      // Refresh token cookie will be cleared by server on next request or logout
     }
     throw error;
   }
@@ -223,8 +216,8 @@ export async function googleSignIn(
     googleId: userInfo.sub,
     avatar: userInfo.picture,
   });
-  const { accessToken, accessTokenExpiresAt, refreshToken } = res.data;
+  const { accessToken, accessTokenExpiresAt } = res.data;
+  // Only store access token in memory (refresh token is in httpOnly cookie)
   authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
-  authStorage.setRefreshToken(refreshToken);
   return res.data;
 }

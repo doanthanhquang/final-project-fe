@@ -78,35 +78,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Monitor token state and sync with user state
   useEffect(() => {
-    // If user is set but no tokens exist, clear user state
+    // If user is set but no access token exists, clear user state
     // But skip if we're already logging out to prevent loops
-    if (
-      !isLoggingOutRef.current &&
-      user &&
-      !authStorage.getRefreshToken() &&
-      !authStorage.getAccessToken()
-    ) {
+    if (!isLoggingOutRef.current && user && !authStorage.getAccessToken()) {
       setUser(null);
       queryClient.clear();
     }
   }, [user, queryClient]);
 
-  // Try to restore session on mount via refresh token
+  // Try to restore session on mount via refresh token (stored in httpOnly cookie)
   useEffect(() => {
     async function bootstrap() {
       try {
-        const refreshToken = authStorage.getRefreshToken();
-        if (refreshToken) {
-          await refreshAccessToken();
-          const me = await getCurrentUser();
-          setUser(me);
-        } else {
-          // No refresh token - ensure clean state
-          authStorage.clearAccessToken();
-          setUser(null);
-        }
+        // Try to refresh access token using refresh token from httpOnly cookie
+        // If refresh token exists in cookie, this will succeed
+        await refreshAccessToken();
+        const me = await getCurrentUser();
+        setUser(me);
       } catch {
-        // Refresh token failed or invalid - force logout
+        // Refresh token failed or invalid (cookie expired/missing) - force logout
         // Tokens are already cleared by refreshAccessToken or api interceptor
         await handleLogout();
       } finally {
