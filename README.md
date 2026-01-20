@@ -1,73 +1,116 @@
-# React + TypeScript + Vite
+## Frontend – React (Vite) SPA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the **React + TypeScript + Vite** frontend for the hybrid email productivity app.
 
-Currently, two official plugins are available:
+- Auth (email/password + Google Sign‑In)
+- Inbox (list + Kanban views)
+- Hybrid search (Smart / Fuzzy / Semantic) with type‑ahead suggestions
+- Email detail view (including “Open in Gmail”)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 1. Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Node.js** 18+
+- **npm** or **yarn**
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 2. Setup & Run (Development)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```bash
+cd final-project-fe
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Install dependencies
+npm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Create env file (if you don't have one)
+cp .env.example .env
+
+# Start dev server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Default dev URL: `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 3. Environment Variables
+
+Create `final-project-fe/.env` (or `.env.local`) with:
+
+```dotenv
+# Backend API base URL (Laravel)
+VITE_API_URL=http://localhost:8000
+
+# Google OAuth client id (frontend)
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ```
+
+> The backend also needs Google OAuth variables in `final-project-be/.env` (see `final-project-be/README.md`).
+
+---
+
+## 4. Authentication & Token Storage (Frontend)
+
+### 4.1 Access token (in-memory only)
+
+- The access token is stored **in memory** only in `authStorage` (`src/services/auth-storage.ts`).
+- After a full page reload (F5), the access token is cleared from memory.
+
+### 4.2 Refresh token (httpOnly cookie)
+
+- The refresh token is stored **server-side only** and sent as an **httpOnly cookie** by the backend.
+- Frontend sends cookies via Axios `withCredentials: true` (already configured in `src/services/api.ts`).
+
+### 4.3 Automatic access token refresh
+
+- Protected API requests use `Authorization: Bearer <accessToken>` if present.
+- If backend refreshes/restores a token, it returns:
+  - `X-New-Access-Token`
+  - `X-Access-Token-Expires-At`
+- The Axios response interceptor updates the in‑memory token automatically.
+
+---
+
+## 5. Local Dev Flow (Typical)
+
+1. Start backend API (`final-project-be`) at `http://localhost:8000`
+2. Start frontend (`final-project-fe`) at `http://localhost:5173`
+3. Login:
+   - Email/password, or
+   - Google Sign‑In (auth-code flow)
+4. If you need Gmail access:
+   - Connect Gmail via `/api/auth/google/authorize` flow (backend), then use the app.
+
+---
+
+## 6. Build & Preview
+
+```bash
+# Build production bundle
+npm run build
+
+# Preview locally
+npm run preview
+```
+
+---
+
+## 7. Deployment Notes (Frontend)
+
+- Build artifacts are in `dist/`
+- Set `VITE_API_URL` to the production backend URL (HTTPS).
+- Google OAuth configuration must include your production frontend origin.
+
+---
+
+## 8. Troubleshooting
+
+- **Login works, but after refresh (F5) user becomes logged out**
+  - Ensure backend is setting `refresh_token` cookie correctly (domain/same-site/secure).
+  - Ensure frontend requests include cookies (`withCredentials: true` is enabled).
+
+- **Google Sign‑In fails**
+  - Confirm `VITE_GOOGLE_CLIENT_ID` matches the Google Cloud OAuth client ID.
+  - Ensure Google Cloud “Authorized JavaScript origins” includes your frontend URL.
