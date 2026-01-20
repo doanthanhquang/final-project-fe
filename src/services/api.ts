@@ -47,9 +47,6 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean;
 }
 
-// Concurrency handling: Single refresh request when multiple 401s occur
-let refreshTokenPromise: Promise<string> | null = null;
-
 api.interceptors.request.use((config) => {
   const token = authStorage.getAccessToken();
   if (token && config.headers) {
@@ -58,83 +55,55 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor to handle automatic token refresh from backend
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check if backend automatically refreshed the token
+    // Axios normalizes header names to lowercase
+    const newAccessToken =
+      response.headers["x-new-access-token"] || response.headers["X-New-Access-Token"];
+    const expiresAt =
+      response.headers["x-access-token-expires-at"] ||
+      response.headers["X-Access-Token-Expires-At"];
+
+    if (newAccessToken && expiresAt) {
+      // Backend automatically refreshed the token, update it
+      authStorage.setAccessToken(newAccessToken, expiresAt);
+    }
+
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as ExtendedAxiosRequestConfig;
-    // Do not attempt refresh flow for auth endpoints; propagate original error
     const requestUrl = originalRequest?.url || "";
-    const isAuthEndpoint = ["/api/login", "/api/register", "/api/refresh", "/api/logout"].some(
-      (p) => requestUrl.includes(p)
+    const isAuthEndpoint = ["/api/login", "/api/register", "/api/logout"].some((p) =>
+      requestUrl.includes(p)
     );
 
+    // Handle 401 errors
+    // Backend middleware automatically refreshes expired access tokens
+    // If we still get 401, it means refresh token is also expired/invalid
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
-      // If no refresh is in progress, start a new one
-      if (!refreshTokenPromise) {
-        refreshTokenPromise = (async () => {
-          try {
-            const refreshed = await refreshAccessToken();
-            return refreshed;
-          } catch (e) {
-            // Refresh token failed - clear all tokens
-            authStorage.clearAccessToken();
-            authStorage.clearRefreshToken();
+      // Retry the request once - backend middleware will auto-refresh if possible
+      // If refresh token is expired, we'll get 401 again
+      return api.request(originalRequest).catch((retryError) => {
+        // If retry still fails with 401, refresh token is expired
+        if (retryError.response?.status === 401) {
+          authStorage.clearAccessToken();
+          authStorage.clearRefreshToken();
 
-            // Dispatch event to notify AuthContext to logout (only if not already logging out)
-            if (!isLoggingOut) {
-              window.dispatchEvent(new CustomEvent("auth:force-logout"));
-            }
-
-            // Call logout API (ignore errors)
-            logout().catch(() => {
-              // Ignore logout API errors - tokens are already cleared
-            });
-
-            throw e;
-          } finally {
-            // Clear the promise so next 401 can trigger a new refresh
-            refreshTokenPromise = null;
+          // Only dispatch logout event if we have a user (meaning we were authenticated)
+          // Don't call logout API if we're already on login page or not authenticated
+          if (!isLoggingOut) {
+            window.dispatchEvent(new CustomEvent("auth:force-logout"));
           }
-        })();
-      }
-
-      // Wait for the ongoing refresh (or join the queue if refresh is in progress)
-      return refreshTokenPromise
-        .then((token) => {
-          // Retry the original request with the new token
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return api.request(originalRequest);
-        })
-        .catch(() => {
-          // If refresh failed, reject the original request
-          return Promise.reject(error);
-        });
-    }
-
-    // Handle 401 on refresh endpoint itself - force logout
-    // But skip if we're already logging out or if this is a logout request
-    if (
-      error.response?.status === 401 &&
-      isAuthEndpoint &&
-      requestUrl.includes("/refresh") &&
-      !requestUrl.includes("/logout")
-    ) {
-      authStorage.clearAccessToken();
-      authStorage.clearRefreshToken();
-
-      // Dispatch event to notify AuthContext to logout (only if not already logging out)
-      if (!isLoggingOut) {
-        window.dispatchEvent(new CustomEvent("auth:force-logout"));
-      }
-
-      logout().catch(() => {
-        // Ignore logout API errors - tokens are already cleared
+        }
+        return Promise.reject(retryError);
       });
     }
+
     // Always reject with the original error so callers can read error.response.data
     return Promise.reject(error);
   }
@@ -166,23 +135,6 @@ export async function logout(): Promise<void> {
     authStorage.clearAccessToken();
     // Refresh token cookie is cleared by server
     isLoggingOut = false;
-  }
-}
-
-export async function refreshAccessToken(): Promise<string> {
-  // Refresh token is in httpOnly cookie, automatically sent with request
-  try {
-    const res = await api.post<AuthResponse>("/refresh");
-    const { accessToken, accessTokenExpiresAt } = res.data;
-    authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
-    return accessToken;
-  } catch (error) {
-    // If refresh token is invalid or expired (401), clear access token
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      authStorage.clearAccessToken();
-      // Refresh token cookie will be cleared by server on next request or logout
-    }
-    throw error;
   }
 }
 

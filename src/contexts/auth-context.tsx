@@ -14,7 +14,6 @@ import {
   getCurrentUser,
   loginUser,
   logout as apiLogout,
-  refreshAccessToken,
   googleSignIn,
   type User,
   type LoginCredentials,
@@ -53,8 +52,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     isLoggingOutRef.current = true;
+
+    // Only call logout API if we have a user (meaning we were authenticated)
+    const hadUser = !!user;
+
     try {
-      await apiLogout();
+      if (hadUser) {
+        await apiLogout();
+      }
     } catch {
       // Ignore logout errors
     } finally {
@@ -62,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       queryClient.clear();
       isLoggingOutRef.current = false;
     }
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   // Listen for force logout events (e.g., when refresh token fails)
   useEffect(() => {
@@ -86,25 +91,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user, queryClient]);
 
-  // Try to restore session on mount via refresh token (stored in httpOnly cookie)
+  // Backend middleware will automatically refresh access token if refresh token exists in cookie
   useEffect(() => {
     async function bootstrap() {
+      // Only try to restore session if we have an access token in memory
+      // This means user was previously logged in (before page refresh)
+      const accessToken = authStorage.getAccessToken();
+
+      if (!accessToken) {
+        // No access token - user is not logged in, skip bootstrap
+        setInitializing(false);
+        return;
+      }
+
       try {
-        // Try to refresh access token using refresh token from httpOnly cookie
-        // If refresh token exists in cookie, this will succeed
-        await refreshAccessToken();
+        // Call /me endpoint - backend middleware will auto-refresh token if needed
         const me = await getCurrentUser();
         setUser(me);
       } catch {
-        // Refresh token failed or invalid (cookie expired/missing) - force logout
-        // Tokens are already cleared by refreshAccessToken or api interceptor
-        await handleLogout();
+        setUser(null);
+        authStorage.clearAccessToken();
+        queryClient.clear();
       } finally {
         setInitializing(false);
       }
     }
     bootstrap();
-  }, [handleLogout]);
+  }, [handleLogout, queryClient]);
 
   const loginMutation = useMutation({
     mutationFn: loginUser,
