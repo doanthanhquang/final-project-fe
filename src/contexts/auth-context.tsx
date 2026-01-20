@@ -43,7 +43,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
   const isLoggingOutRef = useRef(false);
+  const userRef = useRef<User | null>(null);
   const queryClient = useQueryClient();
+
+  // Keep userRef in sync with user state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const handleLogout = useCallback(async () => {
     // Prevent multiple logout calls
@@ -54,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoggingOutRef.current = true;
 
     // Only call logout API if we have a user (meaning we were authenticated)
-    const hadUser = !!user;
+    const hadUser = !!userRef.current;
 
     try {
       if (hadUser) {
@@ -67,7 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       queryClient.clear();
       isLoggingOutRef.current = false;
     }
-  }, [queryClient, user]);
+  }, [queryClient]);
 
   // Listen for force logout events (e.g., when refresh token fails)
   useEffect(() => {
@@ -83,41 +89,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Monitor token state and sync with user state
   useEffect(() => {
-    // If user is set but no access token exists, clear user state
-    // But skip if we're already logging out to prevent loops
-    if (!isLoggingOutRef.current && user && !authStorage.getAccessToken()) {
+    if (isLoggingOutRef.current && user) {
       setUser(null);
       queryClient.clear();
     }
   }, [user, queryClient]);
 
-  // Backend middleware will automatically refresh access token if refresh token exists in cookie
+  // Backend middleware will automatically restore session from refresh token cookie if needed
   useEffect(() => {
+    let isMounted = true;
+
     async function bootstrap() {
-      // Only try to restore session if we have an access token in memory
-      // This means user was previously logged in (before page refresh)
-      const accessToken = authStorage.getAccessToken();
-
-      if (!accessToken) {
-        // No access token - user is not logged in, skip bootstrap
-        setInitializing(false);
-        return;
-      }
-
       try {
-        // Call /me endpoint - backend middleware will auto-refresh token if needed
+        // Always call /me endpoint to check session
         const me = await getCurrentUser();
-        setUser(me);
+        if (isMounted) {
+          setUser(me);
+        }
       } catch {
-        setUser(null);
-        authStorage.clearAccessToken();
-        queryClient.clear();
+        // Session invalid or expired - clear state
+        if (isMounted) {
+          setUser(null);
+          authStorage.clearAccessToken();
+          queryClient.clear();
+        }
       } finally {
-        setInitializing(false);
+        if (isMounted) {
+          setInitializing(false);
+        }
       }
     }
     bootstrap();
-  }, [handleLogout, queryClient]);
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
   const loginMutation = useMutation({
     mutationFn: loginUser,

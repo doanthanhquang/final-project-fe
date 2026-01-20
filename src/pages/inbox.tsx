@@ -347,7 +347,7 @@ export default function EmailInbox() {
     const effectiveMode = actualMode || mode;
     setActualSearchMode(effectiveMode);
     setIsSearching(true);
-
+    console.log("effectiveMode", query);
     // Execute search based on mode
     if (effectiveMode === "semantic") {
       semanticSearchQuery.refetch();
