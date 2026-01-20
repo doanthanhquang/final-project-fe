@@ -47,6 +47,7 @@ export default function EmailInbox() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [actualSearchMode, setActualSearchMode] = useState<SearchMode>("smart");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchPage, setSearchPage] = useState<number>(1);
   const [emailPage, setEmailPage] = useState<number>(1);
   const emailLimit = 50;
   const [emailFilters, setEmailFilters] = useState<{
@@ -102,8 +103,17 @@ export default function EmailInbox() {
   } = emailDetailQuery;
 
   // Search query hooks (fuzzy & semantic)
-  const fuzzySearchQuery = useSearchFuzzy(searchQuery, { limit: 5, page: 1, enabled: false });
-  const semanticSearchQuery = useSearchSemantic(searchQuery, { limit: 5, page: 1, enabled: false });
+  // Enable hooks when searching to allow automatic refetch on page change
+  const fuzzySearchQuery = useSearchFuzzy(searchQuery, {
+    limit: 15,
+    page: searchPage,
+    enabled: isSearching && searchQuery.trim().length > 0,
+  });
+  const semanticSearchQuery = useSearchSemantic(searchQuery, {
+    limit: 15,
+    page: searchPage,
+    enabled: isSearching && searchQuery.trim().length > 0,
+  });
 
   // Determine which query result to use
   const searchQueryResult =
@@ -262,6 +272,11 @@ export default function EmailInbox() {
   };
 
   const handleEmailClick = (emailId: string) => {
+    // Close search results if searching
+    if (isSearching) {
+      setIsSearching(false);
+    }
+
     setSelectedEmailId(emailId);
     // Switch to list view to show email detail
     setViewMode("list");
@@ -343,34 +358,65 @@ export default function EmailInbox() {
   // Search handlers with Smart mode logic and fallback
   const handleSearch = async (query: string, mode: SearchMode, actualMode?: SearchMode) => {
     console.log("handleSearch", mode);
-    setSearchQuery(query);
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return;
+    }
+
     const effectiveMode = actualMode || mode;
+
+    // Update state first - reset to page 1 for new search
+    setSearchQuery(trimmedQuery);
     setActualSearchMode(effectiveMode);
+    setSearchPage(1);
     setIsSearching(true);
-    console.log("effectiveMode", query);
-    // Execute search based on mode
+
+    console.log("effectiveMode", trimmedQuery);
+
+    // Execute search based on mode using queryClient.fetchQuery with the new query
+    // This ensures we use the latest query value, not the stale state
     if (effectiveMode === "semantic") {
-      semanticSearchQuery.refetch();
+      await queryClient.fetchQuery({
+        queryKey: ["emailSearch", "semantic", trimmedQuery, 15, 1],
+        queryFn: () => emailService.searchSemantic(trimmedQuery, 15, 1),
+      });
     } else {
       // Fuzzy search
-      fuzzySearchQuery.refetch().then((result) => {
-        // Smart mode fallback: if fuzzy returns empty, try semantic
-        if (
-          mode === "smart" &&
-          result.data?.data &&
-          result.data.data.length === 0 &&
-          effectiveMode === "fuzzy"
-        ) {
-          setActualSearchMode("semantic");
-          semanticSearchQuery.refetch();
-        }
+      const result = await queryClient.fetchQuery({
+        queryKey: ["emailSearch", "fuzzy", trimmedQuery, 15, 1],
+        queryFn: () => emailService.searchEmails(trimmedQuery, {}, 1, 15, true),
       });
+
+      // Smart mode fallback: if fuzzy returns empty, try semantic
+      if (
+        mode === "smart" &&
+        result?.data &&
+        result.data.length === 0 &&
+        effectiveMode === "fuzzy"
+      ) {
+        setActualSearchMode("semantic");
+        await queryClient.fetchQuery({
+          queryKey: ["emailSearch", "semantic", trimmedQuery, 15, 1],
+          queryFn: () => emailService.searchSemantic(trimmedQuery, 15, 1),
+        });
+      }
     }
+  };
+
+  // Handle search page change
+  const handleSearchPageChange = (page: number) => {
+    if (!searchQuery.trim()) {
+      return;
+    }
+
+    setSearchPage(page);
+    // Hooks will automatically refetch when searchPage changes (because enabled is true when searching)
   };
 
   const handleClearSearch = () => {
     setSearchQuery("");
     setActualSearchMode("smart");
+    setSearchPage(1);
     setIsSearching(false);
   };
 
@@ -495,6 +541,8 @@ export default function EmailInbox() {
                 onClear={handleClearSearch}
                 onEmailClick={handleEmailClick}
                 searchMode={actualSearchMode}
+                pagination={searchQueryResult.data?.pagination}
+                onPageChange={handleSearchPageChange}
               />
             </div>
           ) : viewMode === "kanban" ? (

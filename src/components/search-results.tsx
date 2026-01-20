@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
+import { PaginationControls, type PaginationData } from "@/components/pagination-controls";
 import type { EmailCardData } from "@/types/kanban";
 import type { SearchMode } from "@/components/hybrid-search-bar";
 
@@ -14,6 +15,8 @@ interface SearchResultsProps {
   onClear: () => void;
   onEmailClick?: (emailId: string) => void;
   searchMode?: SearchMode;
+  pagination?: PaginationData;
+  onPageChange?: (page: number) => void;
 }
 
 export function SearchResults({
@@ -24,6 +27,8 @@ export function SearchResults({
   onClear,
   onEmailClick,
   searchMode = "smart",
+  pagination,
+  onPageChange,
 }: SearchResultsProps) {
   const getModeLabel = (mode: SearchMode) => {
     switch (mode) {
@@ -68,7 +73,13 @@ export function SearchResults({
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
             Search Results
-            {results.length > 0 && (
+            {pagination && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({pagination.total.toLocaleString()} {pagination.total === 1 ? "result" : "results"}
+                )
+              </span>
+            )}
+            {!pagination && results.length > 0 && (
               <span className="ml-2 text-sm font-normal text-gray-500">
                 ({results.length} {results.length === 1 ? "result" : "results"})
               </span>
@@ -83,7 +94,7 @@ export function SearchResults({
         </div>
         <Button onClick={onClear} variant="ghost" size="sm">
           <X className="h-4 w-4 mr-2" />
-          Clear
+          {/* Clear */}
         </Button>
       </div>
 
@@ -139,6 +150,15 @@ export function SearchResults({
           ))}
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {pagination && onPageChange && (
+        <PaginationControls
+          pagination={pagination}
+          onPageChange={onPageChange}
+          loading={isLoading}
+        />
+      )}
     </div>
   );
 }
