@@ -1,9 +1,21 @@
 import type { EmailDetail, Attachment } from "@/services/email";
 import { emailService } from "@/services/email";
+import api from "@/services/api";
 import { useState } from "react";
 import { StatusDialog } from "@/components/status-dialog";
 import { ErrorState } from "@/components/error-state";
-import { ExternalLink, Reply, Forward, MailMinus, Trash2 } from "lucide-react";
+import { AttachmentPreviewDialog } from "@/components/attachment-preview-dialog";
+import {
+  ExternalLink,
+  Reply,
+  Forward,
+  MailMinus,
+  Trash2,
+  ArrowLeft,
+  Paperclip,
+  Loader2,
+  Download,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +54,10 @@ export function EmailDetail({
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMime, setPreviewMime] = useState<string | null>(null);
 
   const handleOpenInGmail = () => {
     if (!email) return;
@@ -97,6 +113,46 @@ export function EmailDetail({
     }
   };
 
+  const handlePreview = async (attachment: Attachment) => {
+    if (!email) return;
+    // Revoke any previous blob URL before creating a new one
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    setPreviewing(attachment.id);
+    setDownloadError(null);
+    try {
+      const response = await api.get(`/emails/${email.id}/attachments/${attachment.id}`, {
+        responseType: "blob",
+      });
+      const mimeType = attachment.mime_type || response.data.type || "application/octet-stream";
+      const blob = new Blob([response.data], { type: mimeType });
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewAttachment(attachment);
+      setPreviewUrl(blobUrl);
+      setPreviewMime(mimeType);
+    } catch (error) {
+      console.error("Failed to preview attachment:", error);
+      const errorMsg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (error as Error).message ||
+        "Failed to preview attachment";
+      setDownloadError(errorMsg);
+    } finally {
+      setPreviewing(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewAttachment(null);
+    setPreviewMime(null);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString([], {
       year: "numeric",
@@ -120,14 +176,7 @@ export function EmailDetail({
                 className="lg:hidden p-2 text-gray-600 hover:text-gray-900 -ml-2"
                 aria-label="Back to emails"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
+                <ArrowLeft className="w-6 h-6" />
               </button>
             )}
             <h1 className="text-xl md:text-2xl font-semibold text-gray-900 flex-1 break-words">
@@ -222,42 +271,37 @@ export function EmailDetail({
             <h3 className="text-sm font-medium text-gray-700 mb-2">Attachments</h3>
             <div className="space-y-2">
               {email.attachments.map((attachment) => (
-                <button
+                <div
                   key={attachment.id}
-                  onClick={() => handleDownload(attachment)}
-                  disabled={downloading === attachment.id}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                    />
-                  </svg>
-                  <span className="flex-1 text-left">{attachment.filename}</span>
-                  <span className="text-xs text-gray-500">
-                    {(attachment.size / 1024).toFixed(1)} KB
-                  </span>
-                  {downloading === attachment.id && (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                  )}
-                </button>
+                  <button
+                    onClick={() => handlePreview(attachment)}
+                    disabled={previewing === attachment.id}
+                    className="flex flex-1 items-center gap-2 text-left hover:text-blue-700 hover:bg-blue-50 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    title="Preview with Google Docs Viewer"
+                  >
+                    <Paperclip className="w-4 h-4 shrink-0" />
+                    <span className="flex-1 truncate">{attachment.filename}</span>
+                    <span className="text-xs text-gray-500">
+                      {(attachment.size / 1024).toFixed(1)} KB
+                    </span>
+                    {previewing === attachment.id && <Loader2 className="w-4 h-4 animate-spin" />}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownload(attachment)}
+                    disabled={downloading === attachment.id}
+                    title="Download attachment"
+                  >
+                    {downloading === attachment.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               ))}
             </div>
           </div>
@@ -317,6 +361,14 @@ export function EmailDetail({
           onClose={() => setDownloadError(null)}
         />
       )}
+
+      <AttachmentPreviewDialog
+        open={!!previewUrl}
+        attachment={previewAttachment}
+        url={previewUrl}
+        mime={previewMime}
+        onClose={closePreview}
+      />
     </div>
   );
 }
