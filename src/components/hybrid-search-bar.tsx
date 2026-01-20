@@ -202,9 +202,7 @@ export function HybridSearchBar({
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     const searchValue =
-      suggestion.type === "sender" && suggestion.email
-        ? `from:${suggestion.email}`
-        : suggestion.value;
+      suggestion.type === "sender" && suggestion.email ? suggestion.email : suggestion.value;
 
     setQuery(searchValue);
     setShowSuggestions(false);

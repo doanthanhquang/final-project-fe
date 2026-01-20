@@ -5,6 +5,7 @@ import {
   useMemo,
   useCallback,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,17 +43,53 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const isLoggingOutRef = useRef(false);
   const queryClient = useQueryClient();
 
   const handleLogout = useCallback(async () => {
+    // Prevent multiple logout calls
+    if (isLoggingOutRef.current) {
+      return;
+    }
+
+    isLoggingOutRef.current = true;
     try {
       await apiLogout();
     } catch {
       // Ignore logout errors
+    } finally {
+      setUser(null);
+      queryClient.clear();
+      isLoggingOutRef.current = false;
     }
-    setUser(null);
-    queryClient.clear();
   }, [queryClient]);
+
+  // Listen for force logout events (e.g., when refresh token fails)
+  useEffect(() => {
+    const handleForceLogout = () => {
+      handleLogout();
+    };
+
+    window.addEventListener("auth:force-logout", handleForceLogout);
+    return () => {
+      window.removeEventListener("auth:force-logout", handleForceLogout);
+    };
+  }, [handleLogout]);
+
+  // Monitor token state and sync with user state
+  useEffect(() => {
+    // If user is set but no tokens exist, clear user state
+    // But skip if we're already logging out to prevent loops
+    if (
+      !isLoggingOutRef.current &&
+      user &&
+      !authStorage.getRefreshToken() &&
+      !authStorage.getAccessToken()
+    ) {
+      setUser(null);
+      queryClient.clear();
+    }
+  }, [user, queryClient]);
 
   // Try to restore session on mount via refresh token
   useEffect(() => {
@@ -68,7 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           authStorage.clearAccessToken();
           setUser(null);
         }
-      } catch (error) {
+      } catch {
         // Refresh token failed or invalid - force logout
         // Tokens are already cleared by refreshAccessToken or api interceptor
         await handleLogout();

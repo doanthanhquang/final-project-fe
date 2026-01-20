@@ -46,8 +46,8 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean;
 }
 
-let isRefreshing = false;
-let pendingRequestsQueue: Array<(token: string | null) => void> = [];
+// Concurrency handling: Single refresh request when multiple 401s occur
+let refreshTokenPromise: Promise<string> | null = null;
 
 api.interceptors.request.use((config) => {
   const token = authStorage.getAccessToken();
@@ -70,50 +70,66 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const refreshed = await refreshAccessToken();
-          pendingRequestsQueue.forEach((cb) => cb(refreshed));
-          pendingRequestsQueue = [];
-        } catch (e) {
-          // Refresh token failed - clear all tokens and reject all pending requests
-          pendingRequestsQueue.forEach((cb) => cb(null));
-          pendingRequestsQueue = [];
-          
-          // Force logout: clear tokens (refreshAccessToken already cleared them, but ensure)
-          authStorage.clearAccessToken();
-          authStorage.clearRefreshToken();
-          
-          // Call logout API (ignore errors)
-          logout().catch(() => {
-            // Ignore logout API errors - tokens are already cleared
-          });
-          
-          return Promise.reject(e);
-        } finally {
-          isRefreshing = false;
-        }
+      // If no refresh is in progress, start a new one
+      if (!refreshTokenPromise) {
+        refreshTokenPromise = (async () => {
+          try {
+            const refreshed = await refreshAccessToken();
+            return refreshed;
+          } catch (e) {
+            // Refresh token failed - clear all tokens
+            authStorage.clearAccessToken();
+            authStorage.clearRefreshToken();
+
+            // Dispatch event to notify AuthContext to logout (only if not already logging out)
+            if (!isLoggingOut) {
+              window.dispatchEvent(new CustomEvent("auth:force-logout"));
+            }
+
+            // Call logout API (ignore errors)
+            logout().catch(() => {
+              // Ignore logout API errors - tokens are already cleared
+            });
+
+            throw e;
+          } finally {
+            // Clear the promise so next 401 can trigger a new refresh
+            refreshTokenPromise = null;
+          }
+        })();
       }
 
-      return new Promise((resolve, reject) => {
-        pendingRequestsQueue.push((token) => {
-          if (!token) {
-            reject(error);
-            return;
-          }
+      // Wait for the ongoing refresh (or join the queue if refresh is in progress)
+      return refreshTokenPromise
+        .then((token) => {
+          // Retry the original request with the new token
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${token}`;
           }
-          resolve(api.request(originalRequest));
+          return api.request(originalRequest);
+        })
+        .catch(() => {
+          // If refresh failed, reject the original request
+          return Promise.reject(error);
         });
-      });
     }
-    
+
     // Handle 401 on refresh endpoint itself - force logout
-    if (error.response?.status === 401 && isAuthEndpoint && requestUrl.includes("/refresh")) {
+    // But skip if we're already logging out or if this is a logout request
+    if (
+      error.response?.status === 401 &&
+      isAuthEndpoint &&
+      requestUrl.includes("/refresh") &&
+      !requestUrl.includes("/logout")
+    ) {
       authStorage.clearAccessToken();
       authStorage.clearRefreshToken();
+
+      // Dispatch event to notify AuthContext to logout (only if not already logging out)
+      if (!isLoggingOut) {
+        window.dispatchEvent(new CustomEvent("auth:force-logout"));
+      }
+
       logout().catch(() => {
         // Ignore logout API errors - tokens are already cleared
       });
@@ -131,16 +147,26 @@ export async function loginUser(credentials: LoginCredentials): Promise<AuthResp
   return res.data;
 }
 
+let isLoggingOut = false;
+
 export async function logout(): Promise<void> {
+  // Prevent multiple logout calls
+  if (isLoggingOut) {
+    return;
+  }
+
+  isLoggingOut = true;
   try {
     await api.post("/logout", {
       refreshToken: authStorage.getRefreshToken(),
     });
   } catch {
     // Ignore logout errors
+  } finally {
+    authStorage.clearAccessToken();
+    authStorage.clearRefreshToken();
+    isLoggingOut = false;
   }
-  authStorage.clearAccessToken();
-  authStorage.clearRefreshToken();
 }
 
 export async function refreshAccessToken(): Promise<string> {
