@@ -540,7 +540,7 @@ export default function EmailInbox() {
               <div
                 className={cn(
                   mobileView === "emails" ? "flex" : "hidden",
-                  "md:flex flex-col w-full md:max-w-96 md:w-[30%] border-r border-gray-200"
+                  "lg:flex flex-col w-full lg:max-w-96 lg:w-[30%] border-r border-gray-200"
                 )}
               >
                 <EmailList
@@ -566,7 +566,7 @@ export default function EmailInbox() {
               <div
                 className={cn(
                   mobileView === "detail" && selectedEmailId ? "flex" : "hidden",
-                  "lg:flex flex-col w-fit md:min-w-100"
+                  "lg:flex flex-col w-full lg:min-w-100"
                 )}
               >
                 <EmailDetail

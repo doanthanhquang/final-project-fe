@@ -58,12 +58,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     async function bootstrap() {
       try {
-        if (authStorage.getRefreshToken()) {
+        const refreshToken = authStorage.getRefreshToken();
+        if (refreshToken) {
           await refreshAccessToken();
           const me = await getCurrentUser();
           setUser(me);
+        } else {
+          // No refresh token - ensure clean state
+          authStorage.clearAccessToken();
+          setUser(null);
         }
-      } catch {
+      } catch (error) {
+        // Refresh token failed or invalid - force logout
+        // Tokens are already cleared by refreshAccessToken or api interceptor
         await handleLogout();
       } finally {
         setInitializing(false);

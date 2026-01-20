@@ -108,29 +108,28 @@ export function EmailDetail({
   };
 
   return (
-    <div className="flex-1 bg-white overflow-y-auto relative">
-      <div className="p-4 md:p-6">
-        {/* Back button for mobile */}
-        {showBackButton && onBack && (
-          <button
-            onClick={onBack}
-            className="md:hidden mb-4 p-2 text-gray-600 hover:text-gray-900 -ml-2"
-            aria-label="Back to emails"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-        )}
-
+    <div className="flex-1 w-full bg-white overflow-y-auto overflow-x-auto relative">
+      <div className="p-4 md:p-6 overflow-x-auto">
         {/* Header */}
         <div className="border-b border-gray-200 pb-4 mb-4">
-          <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            {/* Back button for mobile */}
+            {showBackButton && onBack && (
+              <button
+                onClick={onBack}
+                className="lg:hidden p-2 text-gray-600 hover:text-gray-900 -ml-2"
+                aria-label="Back to emails"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+            )}
             <h1 className="text-xl md:text-2xl font-semibold text-gray-900 flex-1 break-words">
               {email.subject || "(No Subject)"}
             </h1>

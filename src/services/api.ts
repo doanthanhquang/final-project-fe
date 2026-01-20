@@ -77,8 +77,19 @@ api.interceptors.response.use(
           pendingRequestsQueue.forEach((cb) => cb(refreshed));
           pendingRequestsQueue = [];
         } catch (e) {
+          // Refresh token failed - clear all tokens and reject all pending requests
+          pendingRequestsQueue.forEach((cb) => cb(null));
           pendingRequestsQueue = [];
-          await logout();
+          
+          // Force logout: clear tokens (refreshAccessToken already cleared them, but ensure)
+          authStorage.clearAccessToken();
+          authStorage.clearRefreshToken();
+          
+          // Call logout API (ignore errors)
+          logout().catch(() => {
+            // Ignore logout API errors - tokens are already cleared
+          });
+          
           return Promise.reject(e);
         } finally {
           isRefreshing = false;
@@ -96,6 +107,15 @@ api.interceptors.response.use(
           }
           resolve(api.request(originalRequest));
         });
+      });
+    }
+    
+    // Handle 401 on refresh endpoint itself - force logout
+    if (error.response?.status === 401 && isAuthEndpoint && requestUrl.includes("/refresh")) {
+      authStorage.clearAccessToken();
+      authStorage.clearRefreshToken();
+      logout().catch(() => {
+        // Ignore logout API errors - tokens are already cleared
       });
     }
     // Always reject with the original error so callers can read error.response.data
@@ -125,11 +145,26 @@ export async function logout(): Promise<void> {
 
 export async function refreshAccessToken(): Promise<string> {
   const refreshToken = authStorage.getRefreshToken();
-  if (!refreshToken) throw new Error("Missing refresh token");
-  const res = await api.post<AuthResponse>("/refresh", { refreshToken });
-  const { accessToken, accessTokenExpiresAt } = res.data;
-  authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
-  return accessToken;
+  if (!refreshToken) {
+    // Clear tokens if refresh token is missing
+    authStorage.clearAccessToken();
+    authStorage.clearRefreshToken();
+    throw new Error("Missing refresh token");
+  }
+
+  try {
+    const res = await api.post<AuthResponse>("/refresh", { refreshToken });
+    const { accessToken, accessTokenExpiresAt } = res.data;
+    authStorage.setAccessToken(accessToken, accessTokenExpiresAt);
+    return accessToken;
+  } catch (error) {
+    // If refresh token is invalid or expired (401), clear all tokens
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      authStorage.clearAccessToken();
+      authStorage.clearRefreshToken();
+    }
+    throw error;
+  }
 }
 
 export const registerUser = async (userData: RegisterUserData): Promise<AuthResponse> => {
